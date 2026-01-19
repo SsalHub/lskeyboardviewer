@@ -1,10 +1,13 @@
 import customtkinter as ctk
 import tkinter as tk
+from tkinter import messagebox, filedialog
 from pynput import keyboard
 from PIL import Image
 import os
+import json
 
 class TransparencySlider(ctk.CTkToplevel):
+    """투명도 조절을 위한 별도의 팝업 창"""
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
@@ -25,6 +28,7 @@ class TransparencySlider(ctk.CTkToplevel):
         self.label.configure(text=f"투명도 조절: {int(value * 100)}%")
 
 class ImageSelectionPopup(ctk.CTkToplevel):
+    """파일 이름 대신 이미지 썸네일 버튼을 보여주는 팝업 창"""
     def __init__(self, parent, key_id):
         super().__init__(parent)
         self.parent = parent
@@ -32,11 +36,9 @@ class ImageSelectionPopup(ctk.CTkToplevel):
         self.title(f"이미지 선택 - [{key_id.upper()}]")
         self.geometry("450x550")
         
-        # --- 모달 및 스택 최우선 설정 ---
         self.attributes("-topmost", True)
         self.transient(parent)
         self.grab_set() 
-        # -----------------------------
         
         self.resource_path = "./resource/char/"
         self.thumbnail_images = []
@@ -47,14 +49,10 @@ class ImageSelectionPopup(ctk.CTkToplevel):
         self.label = ctk.CTkLabel(self, text="바인딩할 캐릭터 이미지를 선택하세요", font=("Arial", 14, "bold"))
         self.label.pack(pady=10)
 
-        # 스크롤 프레임 생성
         self.scroll_frame = ctk.CTkScrollableFrame(self, width=420, height=400)
         self.scroll_frame.pack(pady=10, padx=10, fill="both", expand=True)
 
-        # --- [추가] 스크롤 속도 향상을 위한 이벤트 바인딩 ---
-        # 사용자가 팝업창 어디에서든 휠을 돌려도 반응하도록 bind_all 사용
         self.bind_all("<MouseWheel>", self._on_mousewheel)
-
         self.load_thumbnails()
 
         self.remove_btn = ctk.CTkButton(self, text="이미지 제거 (텍스트 모드)", fg_color="#A12F2F", 
@@ -62,10 +60,7 @@ class ImageSelectionPopup(ctk.CTkToplevel):
         self.remove_btn.pack(pady=15)
 
     def _on_mousewheel(self, event):
-        """마우스 휠 스크롤 속도를 3배 더 빠르게 조정"""
-        # event.delta는 보통 120 단위로 들어옵니다.
-        # scroll(units) 방식으로 배수를 적용하여 속도를 높입니다.
-        speed_multiplier = 100
+        speed_multiplier = 2
         scroll_units = int(-1 * (event.delta / 120) * speed_multiplier)
         self.scroll_frame._parent_canvas.yview_scroll(scroll_units, "units")
 
@@ -74,7 +69,7 @@ class ImageSelectionPopup(ctk.CTkToplevel):
         files = [f for f in os.listdir(self.resource_path) if f.lower().endswith(valid_extensions)]
 
         if not files:
-            lbl = ctk.CTkLabel(self.scroll_frame, text="이미지가 없습니다.\n./resource/char/ 폴더에 이미지를 넣어주세요.")
+            lbl = ctk.CTkLabel(self.scroll_frame, text="이미지가 없습니다.\n./resource/char/ 폴더를 확인하세요.")
             lbl.pack(pady=50)
             return
 
@@ -85,35 +80,51 @@ class ImageSelectionPopup(ctk.CTkToplevel):
                 pil_img = Image.open(file_path)
                 ctk_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(80, 80))
                 self.thumbnail_images.append(ctk_img)
-
-                btn = ctk.CTkButton(
-                    self.scroll_frame, 
-                    text="", 
-                    image=ctk_img,
-                    width=100, height=100,
-                    fg_color="#2b2b2b",
-                    hover_color="#3d3d3d",
-                    command=lambda p=file_path: self.select_image(p)
-                )
+                btn = ctk.CTkButton(self.scroll_frame, text="", image=ctk_img, width=100, height=100,
+                                    fg_color="#2b2b2b", hover_color="#3d3d3d",
+                                    command=lambda p=file_path: self.select_image(p))
                 btn.grid(row=i // cols, column=i % cols, padx=10, pady=10)
-            except Exception as e:
-                print(f"Failed to load {file}: {e}")
+            except: pass
 
     def select_image(self, path):
-        # 팝업 닫기 전 바인딩 해제
-        self.unbind_all("<MouseWheel>")
         self.parent.bind_image_to_key(self.key_id, path)
         self.destroy()
 
     def remove_binding(self):
-        self.unbind_all("<MouseWheel>")
         self.parent.bind_image_to_key(self.key_id, None)
         self.destroy()
 
     def destroy(self):
-        # 파괴 시 전역 바인딩 해제 (중요)
         self.unbind_all("<MouseWheel>")
         super().destroy()
+
+class SaveConfirmDialog(ctk.CTkToplevel):
+    """편집 모드 종료 시 4가지 선택지를 제공하는 커스텀 다이얼로그"""
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("편집 모드 종료")
+        self.geometry("400x200")
+        self.attributes("-topmost", True)
+        self.grab_set()
+        self.resizable(False, False)
+        self.result = None
+
+        label = ctk.CTkLabel(self, text="변경된 설정을 저장하시겠습니까?", font=("Arial", 14, "bold"))
+        label.pack(pady=20)
+
+        btn_frame = ctk.CTkFrame(self, fg_color="transparent")
+        btn_frame.pack(fill="x", padx=20, pady=10)
+
+        ctk.CTkButton(btn_frame, text="저장", width=80, command=lambda: self.set_result("save")).grid(row=0, column=0, padx=5)
+        ctk.CTkButton(btn_frame, text="다른 이름으로 저장", width=120, command=lambda: self.set_result("save_as")).grid(row=0, column=1, padx=5)
+        ctk.CTkButton(btn_frame, text="저장 안 함", width=80, fg_color="#A12F2F", hover_color="#822525", command=lambda: self.set_result("no")).grid(row=1, column=0, padx=5, pady=10)
+        ctk.CTkButton(btn_frame, text="취소", width=80, fg_color="#555555", hover_color="#444444", command=lambda: self.set_result("cancel")).grid(row=1, column=1, padx=5, pady=10)
+
+        btn_frame.columnconfigure((0,1), weight=1)
+
+    def set_result(self, res):
+        self.result = res
+        self.destroy()
 
 class FullKeyboardOverlay(ctk.CTk):
     def __init__(self):
@@ -128,13 +139,15 @@ class FullKeyboardOverlay(ctk.CTk):
         self.min_width_limit = 720 
         
         self.current_alpha = 0.85
-        self.scale_factor_w = 0.97  #
+        self.pre_edit_alpha = 0.85 
+        self.scale_factor_w = 0.97
         self.scale_factor = 1.0 * self.scale_factor_w
         self.base_key_size = 42
         
         self.edit_mode = False
-        self.key_bindings = {}
-        self.image_popup = None  # 팝업 인스턴스 추적
+        self.config_file = "./config.json"
+        self.key_bindings = self.load_config(self.config_file)
+        self.image_popup = None
         
         self.resizing = False
         self.resize_edge = None
@@ -163,18 +176,43 @@ class FullKeyboardOverlay(ctk.CTk):
         self.buttons = {}
         self.setup_layout()
         
-        # 초기 종횡비 저장 (좌표 튐 방지를 위해 한 번만 실행)
         self.update_idletasks()
         self.aspect_ratio = self.winfo_width() / self.winfo_height()
 
         self.last_is_extended = False 
-        self.listener = keyboard.Listener(
-            on_press=self.on_press, 
-            on_release=self.on_release,
-            win32_event_filter=self.win32_filter
-        )
+        self.listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release, win32_event_filter=self.win32_filter)
         self.listener.daemon = True 
         self.listener.start()
+
+    def load_config(self, filename):
+        if os.path.exists(filename):
+            try:
+                with open(filename, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except: pass
+        return {}
+
+    def save_config(self, filename=None):
+        target = filename if filename else self.config_file
+        try:
+            with open(target, "w", encoding="utf-8") as f:
+                json.dump(self.key_bindings, f, ensure_ascii=False, indent=4)
+            return True
+        except Exception as e:
+            messagebox.showerror("저장 오류", f"설정을 저장하지 못했습니다: {e}")
+            return False
+
+    def save_config_as(self):
+        filename = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
+        if filename:
+            return self.save_config(filename)
+        return False
+
+    def load_config_dialog(self):
+        filename = filedialog.askopenfilename(filetypes=[("JSON files", "*.json")])
+        if filename:
+            self.key_bindings = self.load_config(filename)
+            self.refresh_ui()
 
     def create_context_menu(self):
         if self.context_menu: self.context_menu.destroy()
@@ -182,19 +220,50 @@ class FullKeyboardOverlay(ctk.CTk):
         
         bmode_full = "> " if self.current_mode == "full" else "   "
         bmode_tkl = "> " if self.current_mode == "tkl" else "   "
-        bedit = ["종료", "Exit"] if self.edit_mode else ["실행", "Enter"]
+        bedit = "종료 (Exit)" if self.edit_mode else "실행 (Enter)"
+        
         self.context_menu.add_command(label=f"  {bmode_full}풀 배열 (Full Layout)  ", command=lambda: self.switch_layout("full"))
         self.context_menu.add_command(label=f"  {bmode_tkl}텐키리스 (TKL Layout)  ", command=lambda: self.switch_layout("tkl"))
         self.context_menu.add_separator()
-        self.context_menu.add_command(label=f"  편집 모드 {bedit[0]} ({bedit[1]} Edit Mode)  ", command=self.toggle_edit_mode)
-        self.context_menu.add_command(label="  투명도 조절  ", command=self.open_slider_window)
+        self.context_menu.add_command(label=f"  편집 모드 {bedit}  ", command=self.toggle_edit_mode)
+        self.context_menu.add_command(label="  설정 저장하기  ", command=self.save_config)
+        self.context_menu.add_command(label="  다른 이름으로 설정 저장하기...  ", command=self.save_config_as)
+        self.context_menu.add_command(label="  설정 불러오기...  ", command=self.load_config_dialog)
         self.context_menu.add_separator()
+        self.context_menu.add_command(label="  투명도 조절  ", command=self.open_slider_window)
         self.context_menu.add_command(label="  최소화  ", command=self.iconify)
+        self.context_menu.add_separator()
         self.context_menu.add_command(label="  종료  ", command=self.destroy)
 
     def toggle_edit_mode(self):
+        """편집 모드 전환 및 타이틀 바 표시 로직"""
+        if self.edit_mode:
+            dialog = SaveConfirmDialog(self)
+            self.wait_window(dialog)
+            ans = dialog.result
+            
+            if ans == "save": self.save_config()
+            elif ans == "save_as": 
+                if not self.save_config_as(): return 
+            elif ans == "cancel": return
+            
+            # 타이틀바 숨기기 및 원래 상태 복구
+            self.withdraw()
+            self.overrideredirect(True)
+            self.set_transparency(self.pre_edit_alpha)
+            self.configure(fg_color="#1a1a1a")
+            self.deiconify()
+        else:
+            # 편집 모드 진입: 타이틀바 보이기, 투명도 100%, 배경색 변경
+            self.withdraw()
+            self.pre_edit_alpha = self.current_alpha
+            self.overrideredirect(False)
+            self.title("편집 모드 실행 중")
+            self.set_transparency(1.0)
+            self.configure(fg_color="#2a1a1a")
+            self.deiconify()
+
         self.edit_mode = not self.edit_mode
-        self.configure(fg_color="#2a1a1a" if self.edit_mode else "#1a1a1a")
         self.refresh_ui()
 
     def bind_image_to_key(self, key_id, path):
@@ -205,7 +274,6 @@ class FullKeyboardOverlay(ctk.CTk):
     def switch_layout(self, mode_key):
         self.current_mode = mode_key
         mode = self.modes[mode_key]
-        # 좌표 변화 최소화를 위해 지오메트리 직접 설정
         self.geometry(f"{mode['w']}x{mode['h']}")
         self.scale_factor = 1.0 * self.scale_factor_w
         self.update_idletasks()
@@ -275,7 +343,6 @@ class FullKeyboardOverlay(ctk.CTk):
         k_w = (width if width else self.base_key_size) * self.scale_factor
         k_h = (height if height else self.base_key_size) * self.scale_factor
         target_id = key_code if key_code else text.lower()
-        
         display_text = text
         img_obj = None
 
@@ -294,10 +361,8 @@ class FullKeyboardOverlay(ctk.CTk):
         self.buttons[target_id] = btn
 
     def open_image_selection(self, key_id):
-        # 중복 방지: 이미 팝업이 있다면 무시
         if self.image_popup is not None and self.image_popup.winfo_exists():
-            self.image_popup.lift()
-            return
+            self.image_popup.lift(); return
         self.image_popup = ImageSelectionPopup(self, key_id)
 
     def setup_layout(self):
