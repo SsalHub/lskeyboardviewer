@@ -1,6 +1,8 @@
 import customtkinter as ctk
 import tkinter as tk
 from pynput import keyboard
+from PIL import Image
+import os
 
 class TransparencySlider(ctk.CTkToplevel):
     def __init__(self, parent):
@@ -22,6 +24,97 @@ class TransparencySlider(ctk.CTkToplevel):
         self.parent.set_transparency(value)
         self.label.configure(text=f"투명도 조절: {int(value * 100)}%")
 
+class ImageSelectionPopup(ctk.CTkToplevel):
+    def __init__(self, parent, key_id):
+        super().__init__(parent)
+        self.parent = parent
+        self.key_id = key_id
+        self.title(f"이미지 선택 - [{key_id.upper()}]")
+        self.geometry("450x550")
+        
+        # --- 모달 및 스택 최우선 설정 ---
+        self.attributes("-topmost", True)
+        self.transient(parent)
+        self.grab_set() 
+        # -----------------------------
+        
+        self.resource_path = "./resource/char/"
+        self.thumbnail_images = []
+        
+        if not os.path.exists(self.resource_path):
+            os.makedirs(self.resource_path)
+
+        self.label = ctk.CTkLabel(self, text="바인딩할 캐릭터 이미지를 선택하세요", font=("Arial", 14, "bold"))
+        self.label.pack(pady=10)
+
+        # 스크롤 프레임 생성
+        self.scroll_frame = ctk.CTkScrollableFrame(self, width=420, height=400)
+        self.scroll_frame.pack(pady=10, padx=10, fill="both", expand=True)
+
+        # --- [추가] 스크롤 속도 향상을 위한 이벤트 바인딩 ---
+        # 사용자가 팝업창 어디에서든 휠을 돌려도 반응하도록 bind_all 사용
+        self.bind_all("<MouseWheel>", self._on_mousewheel)
+
+        self.load_thumbnails()
+
+        self.remove_btn = ctk.CTkButton(self, text="이미지 제거 (텍스트 모드)", fg_color="#A12F2F", 
+                                        hover_color="#822525", command=self.remove_binding)
+        self.remove_btn.pack(pady=15)
+
+    def _on_mousewheel(self, event):
+        """마우스 휠 스크롤 속도를 3배 더 빠르게 조정"""
+        # event.delta는 보통 120 단위로 들어옵니다.
+        # scroll(units) 방식으로 배수를 적용하여 속도를 높입니다.
+        speed_multiplier = 100
+        scroll_units = int(-1 * (event.delta / 120) * speed_multiplier)
+        self.scroll_frame._parent_canvas.yview_scroll(scroll_units, "units")
+
+    def load_thumbnails(self):
+        valid_extensions = ('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.webp')
+        files = [f for f in os.listdir(self.resource_path) if f.lower().endswith(valid_extensions)]
+
+        if not files:
+            lbl = ctk.CTkLabel(self.scroll_frame, text="이미지가 없습니다.\n./resource/char/ 폴더에 이미지를 넣어주세요.")
+            lbl.pack(pady=50)
+            return
+
+        cols = 3
+        for i, file in enumerate(files):
+            file_path = os.path.join(self.resource_path, file)
+            try:
+                pil_img = Image.open(file_path)
+                ctk_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(80, 80))
+                self.thumbnail_images.append(ctk_img)
+
+                btn = ctk.CTkButton(
+                    self.scroll_frame, 
+                    text="", 
+                    image=ctk_img,
+                    width=100, height=100,
+                    fg_color="#2b2b2b",
+                    hover_color="#3d3d3d",
+                    command=lambda p=file_path: self.select_image(p)
+                )
+                btn.grid(row=i // cols, column=i % cols, padx=10, pady=10)
+            except Exception as e:
+                print(f"Failed to load {file}: {e}")
+
+    def select_image(self, path):
+        # 팝업 닫기 전 바인딩 해제
+        self.unbind_all("<MouseWheel>")
+        self.parent.bind_image_to_key(self.key_id, path)
+        self.destroy()
+
+    def remove_binding(self):
+        self.unbind_all("<MouseWheel>")
+        self.parent.bind_image_to_key(self.key_id, None)
+        self.destroy()
+
+    def destroy(self):
+        # 파괴 시 전역 바인딩 해제 (중요)
+        self.unbind_all("<MouseWheel>")
+        super().destroy()
+
 class FullKeyboardOverlay(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -32,17 +125,20 @@ class FullKeyboardOverlay(ctk.CTk):
             "tkl": {"w": 900, "h": 276, "name": "텐키리스 (87키)"}
         }
         self.current_mode = "full"
-        
-        # 키보드 레이아웃이 깨지지 않는 최소 너비 설정
-        self.min_width_limit = 660 
+        self.min_width_limit = 720 
         
         self.current_alpha = 0.85
-        self.scale_factor = 1.0
+        self.scale_factor_w = 0.97  #
+        self.scale_factor = 1.0 * self.scale_factor_w
         self.base_key_size = 42
+        
+        self.edit_mode = False
+        self.key_bindings = {}
+        self.image_popup = None  # 팝업 인스턴스 추적
+        
         self.resizing = False
         self.resize_edge = None
         
-        # 초기 창 크기 및 종횡비 설정
         mode = self.modes[self.current_mode]
         self.geometry(f"{mode['w']}x{mode['h']}")
         
@@ -67,11 +163,10 @@ class FullKeyboardOverlay(ctk.CTk):
         self.buttons = {}
         self.setup_layout()
         
-        # 초기 종횡비 저장
+        # 초기 종횡비 저장 (좌표 튐 방지를 위해 한 번만 실행)
         self.update_idletasks()
         self.aspect_ratio = self.winfo_width() / self.winfo_height()
 
-        # 키보드 리스너
         self.last_is_extended = False 
         self.listener = keyboard.Listener(
             on_press=self.on_press, 
@@ -82,58 +177,56 @@ class FullKeyboardOverlay(ctk.CTk):
         self.listener.start()
 
     def create_context_menu(self):
+        if self.context_menu: self.context_menu.destroy()
         self.context_menu = tk.Menu(self, tearoff=0, bg="#2b2b2b", fg="white", activebackground="#1f538d", borderwidth=0)
         
-        layout_menu = tk.Menu(self.context_menu, tearoff=0, bg="#2b2b2b", fg="white", activebackground="#1f538d")
-        layout_menu.add_command(label="  풀 배열 (Numpad)  ", command=lambda: self.switch_layout("full"))
-        layout_menu.add_command(label="  텐키리스 (TKL)  ", command=lambda: self.switch_layout("tkl"))
-        
-        self.context_menu.add_cascade(label="  레이아웃 변경  ", menu=layout_menu)
-        self.context_menu.add_command(label="  투명도 조절  ", command=self.open_slider_window)
-        self.context_menu.add_command(label="  최소화  ", command=self.iconify)
+        bmode_full = "> " if self.current_mode == "full" else "   "
+        bmode_tkl = "> " if self.current_mode == "tkl" else "   "
+        bedit = ["종료", "Exit"] if self.edit_mode else ["실행", "Enter"]
+        self.context_menu.add_command(label=f"  {bmode_full}풀 배열 (Full Layout)  ", command=lambda: self.switch_layout("full"))
+        self.context_menu.add_command(label=f"  {bmode_tkl}텐키리스 (TKL Layout)  ", command=lambda: self.switch_layout("tkl"))
         self.context_menu.add_separator()
+        self.context_menu.add_command(label=f"  편집 모드 {bedit[0]} ({bedit[1]} Edit Mode)  ", command=self.toggle_edit_mode)
+        self.context_menu.add_command(label="  투명도 조절  ", command=self.open_slider_window)
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label="  최소화  ", command=self.iconify)
         self.context_menu.add_command(label="  종료  ", command=self.destroy)
+
+    def toggle_edit_mode(self):
+        self.edit_mode = not self.edit_mode
+        self.configure(fg_color="#2a1a1a" if self.edit_mode else "#1a1a1a")
+        self.refresh_ui()
+
+    def bind_image_to_key(self, key_id, path):
+        if path: self.key_bindings[key_id] = path
+        else: self.key_bindings.pop(key_id, None)
+        self.refresh_ui()
 
     def switch_layout(self, mode_key):
         self.current_mode = mode_key
         mode = self.modes[mode_key]
+        # 좌표 변화 최소화를 위해 지오메트리 직접 설정
         self.geometry(f"{mode['w']}x{mode['h']}")
-        self.scale_factor = 1.0
+        self.scale_factor = 1.0 * self.scale_factor_w
         self.update_idletasks()
-        self.aspect_ratio = mode['w'] / mode['h']
-        
-        # 모드에 따른 최소 너비 유동적 조정
-        self.min_width_limit = 1200 if mode_key == "full" else 900
+        self.aspect_ratio = self.winfo_width() / self.winfo_height()
         self.refresh_ui()
 
     def refresh_ui(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+        for widget in self.main_frame.winfo_children(): widget.destroy()
         self.buttons = {}
         self.setup_layout()
 
     def check_edge(self, event):
         if self.resizing: return
-
-        # [수정] 현재 마우스 위치에 있는 위젯 확인
-        # 버튼(키) 위에서는 리사이징 모드가 활성화되지 않도록 필터링
         target = self.winfo_containing(event.x_root, event.y_root)
-        
-        # 마우스 아래에 버튼(또는 버튼 내부 구성요소)이 있다면 리사이징 무시
         if target != self and target != self.main_frame and target is not None:
-            self.resize_edge = None
-            self.config(cursor="")
-            return
-
+            self.resize_edge = None; self.config(cursor=""); return
         x, y = event.x, event.y
         w, h = self.winfo_width(), self.winfo_height()
         m = 15 
-        
-        at_top = y < m
-        at_bottom = y > h - m
-        at_left = x < m
-        at_right = x > w - m
-
+        at_top, at_bottom = y < m, y > h - m
+        at_left, at_right = x < m, x > w - m
         if at_top and at_left: self.resize_edge = "nw"; self.config(cursor="size_nw_se")
         elif at_top and at_right: self.resize_edge = "ne"; self.config(cursor="size_ne_sw")
         elif at_bottom and at_left: self.resize_edge = "sw"; self.config(cursor="size_ne_sw")
@@ -147,8 +240,7 @@ class FullKeyboardOverlay(ctk.CTk):
     def on_button_press(self, event):
         if self.resize_edge:
             self.resizing = True
-            self.start_x_root = event.x_root
-            self.start_y_root = event.y_root
+            self.start_x_root, self.start_y_root = event.x_root, event.y_root
             self.start_geom = (self.winfo_x(), self.winfo_y(), self.winfo_width(), self.winfo_height())
         else:
             self.start_drag_x = event.x
@@ -158,33 +250,23 @@ class FullKeyboardOverlay(ctk.CTk):
         if self.resizing:
             self.resizing = False
             base_w = self.modes[self.current_mode]['w']
-            self.scale_factor = self.winfo_width() / base_w * 0.99
+            self.scale_factor = self.winfo_width() / base_w * self.scale_factor_w
             self.refresh_ui()
 
     def handle_mouse_action(self, event):
         if self.resizing:
             orig_x, orig_y, orig_w, orig_h = self.start_geom
-            dx = event.x_root - self.start_x_root
-            dy = event.y_root - self.start_y_root
-            
-            # 1. 드래그 방향에 따른 너비 변화량 계산
-            if "e" in self.resize_edge: 
-                raw_w = orig_w + dx
-            elif "w" in self.resize_edge: 
-                raw_w = orig_w - dx
-            else: # 상하 드래그 기반 너비 유추
+            dx, dy = event.x_root - self.start_x_root, event.y_root - self.start_y_root
+            if "e" in self.resize_edge: raw_w = orig_w + dx
+            elif "w" in self.resize_edge: raw_w = orig_w - dx
+            else:
                 raw_h = orig_h + dy if "s" in self.resize_edge else orig_h - dy
                 raw_w = raw_h * self.aspect_ratio
-
-            # 2. [핵심] 최소 너비 제한 적용 (Clamping)
             new_w = max(self.min_width_limit, raw_w)
             new_h = new_w / self.aspect_ratio
-            
-            # 3. 좌표 보정 (고정점 기준)
             new_x, new_y = orig_x, orig_y
             if "w" in self.resize_edge: new_x = orig_x + (orig_w - new_w)
             if "n" in self.resize_edge: new_y = orig_y + (orig_h - new_h)
-            
             self.geometry(f"{int(new_w)}x{int(new_h)}+{int(new_x)}+{int(new_y)}")
         else:
             self.geometry(f"+{self.winfo_x() + (event.x - self.start_drag_x)}+{self.winfo_y() + (event.y - self.start_drag_y)}")
@@ -192,48 +274,66 @@ class FullKeyboardOverlay(ctk.CTk):
     def create_key(self, parent, text, row, col, width=None, height=None, columnspan=1, rowspan=1, key_code=None):
         k_w = (width if width else self.base_key_size) * self.scale_factor
         k_h = (height if height else self.base_key_size) * self.scale_factor
-        btn = ctk.CTkButton(parent, text=text, width=k_w, height=k_h, fg_color="#333333", 
+        target_id = key_code if key_code else text.lower()
+        
+        display_text = text
+        img_obj = None
+
+        if target_id in self.key_bindings:
+            try:
+                raw_img = Image.open(self.key_bindings[target_id])
+                img_obj = ctk.CTkImage(light_image=raw_img, dark_image=raw_img, size=(k_w * 0.8, k_h * 0.8))
+                display_text = ""
+            except: pass
+
+        cmd = (lambda tid=target_id: self.open_image_selection(tid)) if self.edit_mode else None
+        btn = ctk.CTkButton(parent, text=display_text, image=img_obj, width=k_w, height=k_h, fg_color="#333333", 
                             text_color="white", corner_radius=int(4*self.scale_factor), 
-                            font=("Arial", int(11*self.scale_factor), "bold"), hover=False)
+                            font=("Arial", int(11*self.scale_factor), "bold"), hover=self.edit_mode, command=cmd)
         btn.grid(row=row, column=col, columnspan=columnspan, rowspan=rowspan, padx=1, pady=1, sticky="nsew")
-        self.buttons[key_code if key_code else text.lower()] = btn
+        self.buttons[target_id] = btn
+
+    def open_image_selection(self, key_id):
+        # 중복 방지: 이미 팝업이 있다면 무시
+        if self.image_popup is not None and self.image_popup.winfo_exists():
+            self.image_popup.lift()
+            return
+        self.image_popup = ImageSelectionPopup(self, key_id)
 
     def setup_layout(self):
         s = self.base_key_size
+        content_cols = 3 if self.current_mode == "full" else 2
+        self.main_frame.grid_columnconfigure(0, weight=1)
+        self.main_frame.grid_columnconfigure(content_cols + 1, weight=1)
+        self.main_frame.grid_rowconfigure(0, weight=1)
+        self.main_frame.grid_rowconfigure(3, weight=1)
+
         f_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        f_frame.grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 5))
+        f_frame.grid(row=1, column=1, columnspan=content_cols, sticky="w", pady=(0, 5))
         f_keys = [["Esc"], [1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]
         for i, group in enumerate(f_keys):
             tmp = ctk.CTkFrame(f_frame, fg_color="transparent")
-            if i == 0:  # ESC key
-                tmp.pack(side="left", padx=0)
-            else:
-                tmp.pack(side="left", padx=(int(50 * self.scale_factor), 0))
+            tmp.pack(side="left", padx=0 if i == 0 else (int(54 * self.scale_factor), 0))
             for idx, key in enumerate(group):
                 k_text = f"F{key}" if isinstance(key, int) else key
                 self.create_key(tmp, k_text, 0, idx, key_code=k_text.lower())
 
         m_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        m_frame.grid(row=1, column=0, sticky="n")
-        
-        nums = ["`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="]
+        m_frame.grid(row=2, column=1, sticky="n")
+        nums = ["`","1","2","3","4","5","6","7","8","9","0","-","="]
         for i, char in enumerate(nums): self.create_key(m_frame, char, 0, i)
         self.create_key(m_frame, "Back", 0, 13, width=s*2, columnspan=2, key_code="backspace")
-
         self.create_key(m_frame, "Tab", 1, 0, width=s*1.5, columnspan=2, key_code="tab")
-        for i, char in enumerate(["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]", "\\"]):
+        for i, char in enumerate(["q","w","e","r","t","y","u","i","o","p","[","]","\\"]):
             self.create_key(m_frame, char.upper(), 1, i+2, key_code=char)
-
         self.create_key(m_frame, "Caps", 2, 0, width=s*1.8, columnspan=2, key_code="caps_lock")
-        for i, char in enumerate(["a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'"]):
+        for i, char in enumerate(["a","s","d","f","g","h","j","k","l",";","'"]):
             self.create_key(m_frame, char.upper(), 2, i+2, key_code=char)
         self.create_key(m_frame, "Enter", 2, 13, width=s*1.8, columnspan=2, key_code="enter")
-
-        self.create_key(m_frame, "Shift", 3, 0, width=s*2.3, columnspan=3, key_code="shift")
-        for i, char in enumerate(["z", "x", "c", "v", "b", "n", "m", ",", ".", "/"]):
-            self.create_key(m_frame, char.upper(), 3, i+3, key_code=char)
-        self.create_key(m_frame, "Shift ", 3, 13, width=s*2.3, columnspan=2, key_code="shift_r")
-
+        self.create_key(m_frame, "Shift", 3, 0, width=s*2.3, columnspan=2, key_code="shift")
+        for i, char in enumerate(["z","x","c","v","b","n","m",",",".","/"]):
+            self.create_key(m_frame, char.upper(), 3, i+2, key_code=char)
+        self.create_key(m_frame, "Shift ", 3, 12, width=s*2.3, columnspan=3, key_code="shift_r")
         self.create_key(m_frame, "Ctrl", 4, 0, width=s*1.3, key_code="ctrl_l")
         self.create_key(m_frame, "Win", 4, 1, width=s*1.3, key_code="cmd")
         self.create_key(m_frame, "Alt", 4, 2, width=s*1.3, key_code="alt_l")
@@ -243,13 +343,12 @@ class FullKeyboardOverlay(ctk.CTk):
         self.create_key(m_frame, "Ctrl", 4, 14, width=s*1.3, key_code="ctrl_r")
 
         n_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        n_frame.grid(row=1, column=1, sticky="n", padx=int(10 * self.scale_factor))
+        n_frame.grid(row=2, column=2, sticky="n", padx=int(10 * self.scale_factor))
         navs = [["insert", "home", "page_up"], ["delete", "end", "page_down"]]
         for r, row in enumerate(navs):
             for c, k in enumerate(row): self.create_key(n_frame, k[:3].upper(), r, c, key_code=k)
-        
         a_frame = ctk.CTkFrame(n_frame, fg_color="transparent")
-        a_frame.grid(row=2, column=0, columnspan=3, pady=(s, 0))
+        a_frame.grid(row=2, column=0, columnspan=3, pady=(s*self.scale_factor, 0))
         self.create_key(a_frame, "↑", 0, 1, key_code="up")
         self.create_key(a_frame, "←", 1, 0, key_code="left")
         self.create_key(a_frame, "↓", 1, 1, key_code="down")
@@ -257,11 +356,11 @@ class FullKeyboardOverlay(ctk.CTk):
 
         if self.current_mode == "full":
             t_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-            t_frame.grid(row=1, column=2, sticky="n")
-            num_map = [[("NL", "num_lock"), ("/", "numpad_div"), ("*", "numpad_mul"), ("-", "numpad_sub")],
-                       [("7", "numpad_7"), ("8", "numpad_8"), ("9", "numpad_9")],
-                       [("4", "numpad_4"), ("5", "numpad_5"), ("6", "numpad_6")],
-                       [("1", "numpad_1"), ("2", "numpad_2"), ("3", "numpad_3")]]
+            t_frame.grid(row=2, column=3, sticky="n")
+            num_map = [[("NL","num_lock"),("/","numpad_div"),("*","numpad_mul"),("-","numpad_sub")],
+                       [("7","numpad_7"),("8","numpad_8"),("9","numpad_9")],
+                       [("4","numpad_4"),("5","numpad_5"),("6","numpad_6")],
+                       [("1","numpad_1"),("2","numpad_2"),("3","numpad_3")]]
             for r, row in enumerate(num_map):
                 for c, (txt, kid) in enumerate(row): self.create_key(t_frame, txt, r, c, key_code=kid)
             self.create_key(t_frame, "0", 4, 0, width=s*2, columnspan=2, key_code="numpad_0")
@@ -270,8 +369,7 @@ class FullKeyboardOverlay(ctk.CTk):
             self.create_key(t_frame, "Ent", 3, 3, height=s*2, rowspan=2, key_code="numpad_enter")
 
     def win32_filter(self, msg, data):
-        self.last_is_extended = bool(data.flags & 0x01)
-        return True
+        self.last_is_extended = bool(data.flags & 0x01); return True
 
     def on_press(self, key):
         k = self.parse_key(key)
@@ -296,10 +394,9 @@ class FullKeyboardOverlay(ctk.CTk):
 
     def open_slider_window(self): TransparencySlider(self)
     def set_transparency(self, value):
-        self.current_alpha = value
-        self.attributes("-alpha", value)
-    def show_menu(self, event): self.context_menu.post(event.x_root, event.y_root)
+        self.current_alpha = value; self.attributes("-alpha", value)
+    def show_menu(self, event):
+        self.create_context_menu(); self.context_menu.post(event.x_root, event.y_root)
 
 if __name__ == "__main__":
-    app = FullKeyboardOverlay()
-    app.mainloop()
+    app = FullKeyboardOverlay(); app.mainloop()
