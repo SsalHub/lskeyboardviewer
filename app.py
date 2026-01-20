@@ -99,9 +99,9 @@ class ImageGalleryPopup(ctk.CTkToplevel):
         super().__init__(parent)
         self.parent = parent
         self.target_slot_key = target_slot_key
-        self.callback = callback # 선택 시 부모 창에 데이터 전달용
-        self.title("캐릭터 이미지 갤러리")
-        self.geometry("420x550")
+        self.callback = callback 
+        self.title("이미지 선택")
+        self.geometry("420x600") # 버튼 추가를 위한 높이 조절
         self.attributes("-topmost", True)
         self.transient(parent)
         self.grab_set()
@@ -112,14 +112,18 @@ class ImageGalleryPopup(ctk.CTkToplevel):
         if not os.path.exists(self.resource_path):
             os.makedirs(self.resource_path)
 
-        self.label = ctk.CTkLabel(self, text=f"[{target_slot_key.upper()}] 용병에 입힐 이미지 선택", font=("Arial", 12, "bold"))
-        self.label.pack(pady=10)
+        ctk.CTkLabel(self, text="이미지를 선택하세요", font=("Arial", 12, "bold")).pack(pady=10)
 
-        self.scroll_frame = ctk.CTkScrollableFrame(self, width=380, height=450)
+        self.scroll_frame = ctk.CTkScrollableFrame(self, width=380, height=420)
         self.scroll_frame.pack(pady=10, padx=10, fill="both", expand=True)
 
         self.bind_all("<MouseWheel>", self._on_mousewheel)
         self.load_thumbnails()
+
+        # [추가] 이미지 제거 버튼 (텍스트 모드로 복구)
+        self.remove_btn = ctk.CTkButton(self, text="이미지 제거 (텍스트 모드)", fg_color="#A12F2F", 
+                                        hover_color="#822525", command=self.remove_binding)
+        self.remove_btn.pack(pady=15)
 
     def _on_mousewheel(self, event):
         speed_multiplier = 100
@@ -146,12 +150,18 @@ class ImageGalleryPopup(ctk.CTkToplevel):
         self.callback(self.target_slot_key, path)
         self.destroy()
 
+    # [추가] 이미지 제거 핸들러
+    def remove_binding(self):
+        self.unbind_all("<MouseWheel>")
+        self.callback(self.target_slot_key, None) # None을 전달하여 이미지 제거 요청
+        self.destroy()
+
     def destroy(self):
         self.unbind_all("<MouseWheel>")
         super().destroy()
 
 class InGameKeyConfigPopup(ctk.CTkToplevel):
-    """SOLDIER 1~50 설정 창"""
+    """SOLDIER 1~50 설정 창 - 부분 재생성 최적화 버전"""
     def __init__(self, parent, soldier_data):
         super().__init__(parent)
         self.parent = parent
@@ -159,10 +169,11 @@ class InGameKeyConfigPopup(ctk.CTkToplevel):
         self.title("용병 설정 - 로스트사가")
         self.geometry("850x650")
         self.attributes("-topmost", True)
-        self.slots = {}
+        
+        # 슬롯 정보를 저장할 딕셔너리 (프레임 참조 및 위치 저장)
+        self.slot_containers = {} 
 
-        self.label = ctk.CTkLabel(self, text="슬롯을 클릭하여 이미지를 지정하세요", font=("Arial", 16, "bold"))
-        self.label.pack(pady=10)
+        ctk.CTkLabel(self, text="슬롯을 클릭하여 이미지를 지정하세요", font=("Arial", 16, "bold")).pack(pady=10)
 
         self.scroll_frame = ctk.CTkScrollableFrame(self, width=800, height=550)
         self.scroll_frame.pack(pady=10, padx=10, fill="both", expand=True)
@@ -176,46 +187,76 @@ class InGameKeyConfigPopup(ctk.CTkToplevel):
         self.scroll_frame._parent_canvas.yview_scroll(scroll_units, "units")
 
     def setup_slots(self):
+        """전체 슬롯 초기 생성"""
         cols = 6
         for i in range(1, 51):
-            s_id = f"SOLDIER{i}"
-            key_val = self.soldier_data.get(s_id, "N/A")
-            
-            slot_frame = ctk.CTkFrame(self.scroll_frame, width=120, height=140, fg_color="#333333")
-            slot_frame.grid(row=(i-1)//cols, column=(i-1)%cols, padx=5, pady=5)
-            slot_frame.grid_propagate(False)
+            row = (i-1)//cols
+            col = (i-1)%cols
+            self.create_single_slot(i, row, col)
 
-            ctk.CTkLabel(slot_frame, text=f"{s_id}\n({key_val})", font=("Arial", 10)).pack(pady=5)
+    def create_single_slot(self, index, row, col):
+        """[핵심] 특정 위치에 단일 슬롯 프레임과 버튼을 생성합니다."""
+        s_id = f"SOLDIER{index}"
+        raw_val = self.soldier_data.get(s_id, "0")
+        key_id = get_lostsaga_key_name(raw_val)
+        target_key = key_id.lower()
+        
+        # 1. 개별 슬롯을 담을 프레임 생성
+        slot_frame = ctk.CTkFrame(self.scroll_frame, width=120, height=140, fg_color="#333333")
+        slot_frame.grid(row=row, column=col, padx=5, pady=5)
+        slot_frame.grid_propagate(False)
 
-            # 현재 바인딩 이미지 로드
-            img_path = self.parent.key_bindings.get(key_val.lower())
-            display_img = None
-            if img_path and os.path.exists(img_path):
-                try:
-                    pil_img = Image.open(img_path)
-                    display_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(60, 60))
-                except: pass
+        display_name = key_id.replace("numpad_", "NUM ").upper()
+        ctk.CTkLabel(slot_frame, text=f"{s_id}\n({display_name})", font=("Arial", 10)).pack(pady=5)
 
-            btn = ctk.CTkButton(slot_frame, text="+" if not display_img else "", 
-                                image=display_img, width=80, height=80,
-                                fg_color="#262626", hover_color="#404040",
-                                command=lambda k=key_val: self.open_gallery_for_slot(k))
-            btn.pack(pady=5)
-            self.slots[key_val.lower()] = btn
+        # 2. 이미지 로드 및 참조 유지
+        img_path = self.parent.key_bindings.get(target_key)
+        display_img = None
+        if img_path and os.path.exists(img_path):
+            try:
+                pil_img = Image.open(img_path)
+                display_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(60, 60))
+            except: pass
+
+        # 3. 버튼 생성
+        btn = ctk.CTkButton(slot_frame, 
+                            text="+" if not display_img else "", 
+                            image=display_img, 
+                            width=80, height=80,
+                            fg_color="#262626", hover_color="#404040",
+                            command=lambda k=key_id: self.open_gallery_for_slot(k))
+        btn.pack(pady=5)
+        
+        if display_img:
+            btn.image_obj = display_img # 가비지 컬렉션 방지 참조
+
+        # 4. 관리를 위해 프레임과 위치 정보 저장
+        self.slot_containers[target_key] = {
+            'frame': slot_frame,
+            'index': index,
+            'row': row,
+            'col': col
+        }
 
     def open_gallery_for_slot(self, key_val):
-        """특정 슬롯 클릭 시 갤러리 오픈"""
         ImageGalleryPopup(self, key_val, self.update_slot_image)
 
     def update_slot_image(self, key_val, image_path):
-        """갤러리에서 선택 완료 시 실행"""
+        """[해결] 해당 슬롯만 destroy() 후 재생성하여 이미지를 확실하게 갱신합니다."""
         target_key = key_val.lower()
         self.parent.bind_image_to_key(target_key, image_path)
         
-        # 슬롯 이미지 갱신
-        pil_img = Image.open(image_path)
-        new_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(60, 60))
-        self.slots[target_key].configure(image=new_img, text="")
+        # 기존 슬롯 정보 찾기
+        slot_info = self.slot_containers.get(target_key)
+        if slot_info:
+            # 1. 기존 프레임 파괴
+            slot_info['frame'].destroy()
+            
+            # 2. 동일한 위치에 신규 슬롯 생성 (초기 로드 로직 재사용)
+            self.create_single_slot(slot_info['index'], slot_info['row'], slot_info['col'])
+            
+            # 3. 즉시 반영을 위해 업데이트 강제 호출
+            self.update_idletasks()
 
     def destroy(self):
         self.unbind_all("<MouseWheel>")
@@ -248,22 +289,48 @@ class AccountSelectionPopup(ctk.CTkToplevel):
             ctk.CTkLabel(self.scroll_frame, text="Save 폴더 없음").pack(pady=20)
 
     def on_account_select(self, account_name, game_path):
+        """AccountSelectionPopup 클래스 내부의 메서드"""
         ini_path = os.path.join(game_path, "Save", account_name, "customkey.ini")
         if not os.path.exists(ini_path):
-            messagebox.showerror("파일 오류", f"customkey.ini를 찾을 수 없습니다.")
+            messagebox.showerror("파일 오류", "customkey.ini를 찾을 수 없습니다.")
             return
 
+        content = ""
+        # 1. 인코딩 시도 (CP949 우선 사용)
+        encodings = ['cp949', 'utf-16', 'utf-8']
+        for enc in encodings:
+            try:
+                with open(ini_path, 'r', encoding=enc) as f:
+                    content = f.read()
+                break
+            except: continue
+
+        if not content:
+            messagebox.showerror("읽기 오류", "파일을 읽을 수 없거나 내용이 비어있습니다.")
+            return
+
+        # 2. [Key] 섹션이 시작되는 위치를 찾아 그 앞의 내용을 제거 (파싱 에러 방지)
+        key_section_start = content.find("[Key]")
+        if key_section_start != -1:
+            content = content[key_section_start:]
+        else:
+            messagebox.showerror("섹션 오류", "[Key] 섹션을 찾을 수 없습니다.")
+            return
+
+        # 3. 메모리 내 텍스트로 파싱 진행
         config = configparser.ConfigParser(strict=False)
         try:
-            config.read(ini_path, encoding='utf-16')
-            if not config.has_section('Key'): config.read(ini_path, encoding='utf-8')
-        except: pass
+            config.read_string(content)
+        except Exception as e:
+            messagebox.showerror("파싱 오류", f"INI 형식이 올바르지 않습니다: {e}")
+            return
 
         soldier_data = {}
         if config.has_section('Key'):
             for i in range(1, 51):
                 key = f"SOLDIER{i}"
-                if config.has_option('Key', key): soldier_data[key] = config.get('Key', key)
+                if config.has_option('Key', key): 
+                    soldier_data[key] = config.get('Key', key)
 
         self.destroy()
         InGameKeyConfigPopup(self.parent, soldier_data)
@@ -271,7 +338,7 @@ class AccountSelectionPopup(ctk.CTkToplevel):
 class SaveConfirmDialog(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
-        self.title("편집 모드 종료")
+        self.title("직접 편집 모드 종료")
         self.geometry("400x200")
         self.attributes("-topmost", True)
         self.grab_set()
@@ -351,26 +418,50 @@ class FullKeyboardOverlay(ctk.CTk):
             return True
         except: return False
 
+    def save_config_as(self):
+        """다른 이름으로 저장 다이얼로그를 띄웁니다."""
+        filename = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
+        if filename:
+            return self.save_config(filename)
+        return False
+
     def create_context_menu(self):
-        if self.context_menu: self.context_menu.destroy()
+        """우클릭 메뉴 구성 (편집 모드 시 항목 제한 및 초기화 기능 추가)"""
+        if self.context_menu: 
+            self.context_menu.destroy()
+            
         self.context_menu = tk.Menu(self, tearoff=0, bg="#2b2b2b", fg="white", activebackground="#1f538d", borderwidth=0)
         
-        # [복구] 레이아웃 설정 메뉴
+        # [공통] 레이아웃 설정 메뉴
         bmode_full = "> " if self.current_mode == "full" else "   "
         bmode_tkl = "> " if self.current_mode == "tkl" else "   "
         self.context_menu.add_command(label=f"  {bmode_full}풀 배열 (Full Layout)  ", command=lambda: self.switch_layout("full"))
         self.context_menu.add_command(label=f"  {bmode_tkl}텐키리스 (TKL Layout)  ", command=lambda: self.switch_layout("tkl"))
         self.context_menu.add_separator()
-        
-        self.context_menu.add_command(label="  LostSaga 설정 불러오기  ", command=lambda: AccountSelectionPopup(self, self.game_path))
-        self.context_menu.add_command(label="  게임 경로 설정...  ", command=self.set_game_directory)
-        self.context_menu.add_separator()
-        
-        bedit = "편집 완료하기" if self.edit_mode else "직접 편집하기"
-        self.context_menu.add_command(label=f"  {bedit}  ", command=self.toggle_edit_mode)
-        self.context_menu.add_command(label="  현재 설정 저장하기  ", command=self.save_config)
-        self.context_menu.add_command(label="  원본 사이즈로 되돌리기  ", command=self.reset_to_original_size)
-        self.context_menu.add_command(label="  종료  ", command=self.destroy)
+
+        if self.edit_mode:
+            # --- 편집 모드일 때: 레이아웃 선택과 완료 버튼만 표시 ---
+            self.context_menu.add_command(label="  직접 편집 완료하기  ", command=self.toggle_edit_mode)
+        else:
+            # --- 일반 모드일 때: 전체 메뉴 표시 ---
+            self.context_menu.add_command(label="  인게임 설정으로 편집 모드  ", command=lambda: AccountSelectionPopup(self, self.game_path))
+            self.context_menu.add_command(label="  직접 편집 모드  ", command=self.toggle_edit_mode)
+            self.context_menu.add_separator()
+            
+            self.context_menu.add_command(label="  설정 저장하기  ", command=self.save_config)
+            self.context_menu.add_command(label="  다른 이름으로 설정 저장하기  ", command=self.save_config_as)
+            self.context_menu.add_command(label="  설정 내용 초기화  ", command=self.reset_all_settings) # 새 기능 추가
+            self.context_menu.add_command(label="  창 크기 초기화  ", command=self.reset_to_original_size)
+            self.context_menu.add_separator()
+
+            self.context_menu.add_command(label="  종료  ", command=self.destroy)
+
+    def reset_all_settings(self):
+        """모든 키 바인딩 설정을 삭제하고 초기화합니다."""
+        if messagebox.askyesno("설정 초기화", "모든 키 바인딩 설정을 초기화하시겠습니까?\n(이미지 정보가 모두 사라집니다.)"):
+            self.key_bindings = {}
+            self.refresh_ui()
+            messagebox.showinfo("초기화 완료", "모든 설정이 초기화되었습니다.")
 
     def set_game_directory(self):
         path = filedialog.askdirectory(title="로스트사가 설치 폴더 선택", initialdir=self.game_path)
@@ -546,6 +637,36 @@ class FullKeyboardOverlay(ctk.CTk):
     def open_slider_window(self): TransparencySlider(self)
     def set_transparency(self, value): self.current_alpha = value; self.attributes("-alpha", value)
     def show_menu(self, event): self.create_context_menu(); self.context_menu.post(event.x_root, event.y_root)
+
+def get_lostsaga_key_name(vk_code_str):
+    """로스트사가 전용 키 코드를 프로그램 내부 key_code로 변환합니다."""
+    try:
+        vk = int(vk_code_str)
+        # 제공된 목록 기반 매핑 테이블
+        mapping = {
+            # 특수키
+            96: "`", 32: "space", 173: "caps_lock",
+            # 방향키
+            134: "left", 135: "right", 136: "up", 137: "down",
+            # 시스템 및 넘패드 기호
+            128: "shift", 129: "shift_r", 131: "ctrl_r",
+            156: "numpad_div", 157: "numpad_mul", 158: "numpad_sub", 159: "numpad_add",
+            160: "numpad_enter", 161: "numpad_.",
+            # 네비게이션
+            150: "insert", 152: "home", 154: "page_up",
+            151: "delete", 153: "end", 155: "page_down"
+        }
+        if 48 <= vk and vk <= 57:  # 일반 숫자
+            return f"{vk - 48}"
+        if 97 <= vk and vk <= 122:  # 알파벳
+            return f"{chr(vk)}"
+        if 138 <= vk and vk <= 149: # 펑션 키
+            return f"F{vk - 137}"
+        if 162 <= vk and vk <= 171: # 넘패드 숫자
+            return f"numpad_{vk - 162}"
+        return mapping.get(vk, f"key_{vk}")
+    except:
+        return vk_code_str
 
 if __name__ == "__main__":
     app = FullKeyboardOverlay(); app.mainloop()

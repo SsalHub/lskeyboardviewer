@@ -1,4 +1,7 @@
 {
-    "game_path": "C:\\Program Files\\LostSaga",
-    "key_bindings": {}
+    "key_bindings": {
+        "1": "./resource/img/thum_char_001_n.png",
+        "3": "./resource/img/thum_char_004_n.png"
+    },
+    "game_path": "C:\\Program Files\\LostSaga"
 }
