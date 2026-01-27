@@ -3,5 +3,6 @@
         "1": "./resource/img/thum_char_001_n.png",
         "3": "./resource/img/thum_char_004_n.png"
     },
-    "game_path": "C:\\Program Files\\LostSaga"
+    "game_path": "C:\\Program Files\\LostSaga",
+    "last_account": "도륙"
 }
