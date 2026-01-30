@@ -94,7 +94,7 @@ class ImageSelectionPopup(ctk.CTkToplevel):
         super().destroy()
 
 class ImageGalleryPopup(ctk.CTkToplevel):
-    """용병 슬롯 전용 이미지 갤러리 팝업 - Enter 키 검색 및 검색 버튼 추가 버전"""
+    """용병 슬롯 전용 이미지 갤러리 팝업 - JSON 기반 검색 및 파일명 재조합 버전"""
     def __init__(self, parent, target_slot_key, callback):
         super().__init__(parent)
         self.parent = parent
@@ -107,26 +107,26 @@ class ImageGalleryPopup(ctk.CTkToplevel):
         self.grab_set()
 
         self.resource_path = "./resource/img/"
-        self.json_path = "./resource/char_data.json"
+        self.json_path = "./resource/data.json"
         
-        # 1. 캐릭터 데이터 로드
+        # 1. 캐릭터 데이터 로드 (data.json의 'char' 섹션 또는 전체 읽기)
         self.char_data = self.load_char_data()
-        self.thumbnail_buttons = {} 
+        self.thumbnail_buttons = {} # 검색 필터링을 위한 버튼 저장소
 
         # 2. 검색창 레이아웃 구성
         search_frame = ctk.CTkFrame(self, fg_color="transparent")
         search_frame.pack(pady=10, padx=20, fill="x")
 
         # 검색 입력창: Enter 키(<Return>) 이벤트 바인딩
-        self.search_entry = ctk.CTkEntry(search_frame, placeholder_text="번호, 이름, 줄임말, 초성 검색...", font=("Arial", 12))
+        self.search_entry = ctk.CTkEntry(search_frame, placeholder_text="번호, 이름, 초성 검색...", font=("Arial", 12))
         self.search_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
         self.search_entry.bind("<Return>", self.on_search) 
 
-        # 검색 버튼 추가
+        # 검색 버튼
         self.search_btn = ctk.CTkButton(search_frame, text="검색", width=60, command=self.on_search)
         self.search_btn.pack(side="left")
 
-        # 팝업이 열린 후 검색창에 자동 포커스
+        # 자동 포커스
         self.after(200, lambda: self.search_entry.focus_set())
 
         # 3. 이미지 출력 영역
@@ -134,9 +134,11 @@ class ImageGalleryPopup(ctk.CTkToplevel):
         self.scroll_frame.pack(pady=10, padx=10, fill="both", expand=True)
 
         self.bind_all("<MouseWheel>", self._on_mousewheel)
+        
+        # 4. 캐릭터 목록 로드 및 버튼 생성
         self.load_thumbnails()
 
-        # 4. 하단 제거 버튼
+        # 5. 하단 제거 버튼
         self.remove_btn = ctk.CTkButton(self, text="이미지 제거 (텍스트 모드)", fg_color="#A12F2F", 
                                         hover_color="#822525", command=self.remove_binding)
         self.remove_btn.pack(pady=15)
@@ -147,84 +149,87 @@ class ImageGalleryPopup(ctk.CTkToplevel):
         self.scroll_frame._parent_canvas.yview_scroll(scroll_units, "units")
 
     def load_char_data(self):
-        """외부 JSON 파일에서 캐릭터 정보를 읽어옵니다."""
+        """JSON 파일에서 캐릭터 정보를 읽어옵니다."""
         if os.path.exists(self.json_path):
             try:
-                with open(self.json_path, "r", encoding="utf-8") as f:
-                    return json.load(f)
+                with open(self.json_path, "r", encoding="euc-kr") as f:
+                    data = json.load(f)
+                    # 'char' 키가 있으면 해당 섹션을 반환, 없으면 전체 반환
+                    return data.get("char", data)
             except Exception as e:
                 print(f"JSON 로드 오류: {e}")
         return {}
 
     def load_thumbnails(self):
-        """초기 모든 이미지를 로드하여 버튼을 생성하되, 화면에는 보이지 않게 설정합니다."""
-        valid_extensions = ('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.webp')
-        # 이미지 폴더 내 파일 리스트 (숫자 기준 정렬)
-        try:
-            files = sorted([f for f in os.listdir(self.resource_path) if f.lower().endswith(valid_extensions)], 
-                           key=lambda x: int(os.path.splitext(x)[0]) if os.path.splitext(x)[0].isdigit() else 999)
-        except FileNotFoundError:
-            print(f"오류: {self.resource_path} 경로를 찾을 수 없습니다.")
-            return
+        """JSON 데이터를 기반으로 파일명을 재조합하여 이미지를 로드합니다."""
+        # 딕셔너리 아이템 순회 (ID를 기준으로 이미지 매칭)
+        for char_id, info in self.char_data.items():
+            if not char_id.isdigit(): continue # 숫자가 아닌 키(기본 액션 등) 제외
 
-        for file in files:
-            char_id = os.path.splitext(file)[0] # 파일명을 ID로 사용
-            file_path = os.path.join(self.resource_path, file)
-            try:
-                pil_img = Image.open(file_path)
-                ctk_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(80, 80))
-                
-                btn = ctk.CTkButton(self.scroll_frame, text="", image=ctk_img, width=100, height=100,
-                                    fg_color="#2b2b2b", hover_color="#3d3d3d",
-                                    command=lambda p=file_path: self.confirm_selection(p))
-                
-                # 검색용 데이터와 버튼 객체 매핑
-                self.thumbnail_buttons[char_id] = btn
-            except: pass
+            # 파일명 재조합: char_icon_ + 3자리 숫자 (예: "1" -> "001")
+            formatted_id = char_id.zfill(3)
+            filename = f"char_icon_{formatted_id}.png"
+            file_path = os.path.join(self.resource_path, filename)
+
+            if os.path.exists(file_path):
+                try:
+                    pil_img = Image.open(file_path)
+                    ctk_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(80, 80))
+                    
+                    btn = ctk.CTkButton(self.scroll_frame, text="", image=ctk_img, width=100, height=100,
+                                        fg_color="#2b2b2b", hover_color="#3d3d3d",
+                                        command=lambda p=file_path: self.confirm_selection(p))
+                    
+                    # 검색 필터링을 위해 버튼 객체 저장
+                    self.thumbnail_buttons[char_id] = btn
+                except: pass
         
-        # 처음에는 전체 표시
+        # 초기 화면: 전체 표시
         self.update_gallery("")
 
-    def confirm_selection(self, path):
-        """이미지 선택 완료"""
-        self.callback(self.target_slot_key, path)
-        self.destroy()
-
-    def remove_binding(self):
-        """이미지 제거 요청 처리"""
-        self.unbind_all("<MouseWheel>")
-        self.callback(self.target_slot_key, None) 
-        self.destroy()
-
     def on_search(self, event=None):
-        """검색어 입력 시(Enter) 또는 검색 버튼 클릭 시 갤러리를 업데이트합니다."""
+        """Enter 키 또는 버튼 클릭 시 호출"""
         query = self.search_entry.get().strip().lower()
         self.update_gallery(query)
 
     def update_gallery(self, query):
-        """검색어에 따라 버튼을 필터링하여 다시 배치합니다."""
-        # 1. 기존 그리드 초기화 (객체는 파괴하지 않음)
+        """입력된 쿼리에 따라 캐릭터 필터링"""
+        # 모든 버튼 숨기기
         for btn in self.thumbnail_buttons.values():
             btn.grid_forget()
 
-        # 2. 필터링 로직
         filtered_ids = []
         if not query:
             filtered_ids = list(self.thumbnail_buttons.keys())
         else:
             for cid, info in self.char_data.items():
-                # ID 일치, 이름 포함, 줄임말 포함, 초성 포함 여부 확인
-                if (query == cid or 
-                    query in info.get("name", "").lower() or 
-                    any(query in abbr.lower() for abbr in info.get("abbr", [])) or 
-                    query in info.get("chosung", "")):
-                    if cid in self.thumbnail_buttons:
-                        filtered_ids.append(cid)
+                if cid not in self.thumbnail_buttons: continue
 
-        # 3. 필터링된 버튼만 다시 배치 (3열 배치)
+                name = info.get("name", "").lower()
+                # 'chosung' 필드 또는 'keyword' 리스트 내 검색
+                chosung = info.get("chosung", "")
+                keywords = info.get("keyword", [])
+
+                # 1. ID 일치, 2. 이름 포함, 3. 초성 일치, 4. 키워드 리스트 포함 여부 확인
+                if (query == cid or 
+                    query in name or 
+                    query == chosung or 
+                    any(query in k.lower() for k in keywords)):
+                    filtered_ids.append(cid)
+
+        # 필터링된 결과 배치 (3열)
         cols = 3
         for i, cid in enumerate(filtered_ids):
             self.thumbnail_buttons[cid].grid(row=i // cols, column=i % cols, padx=10, pady=10)
+
+    def confirm_selection(self, path):
+        self.callback(self.target_slot_key, path)
+        self.destroy()
+
+    def remove_binding(self):
+        self.unbind_all("<MouseWheel>")
+        self.callback(self.target_slot_key, None) 
+        self.destroy()
 
     def destroy(self):
         self.unbind_all("<MouseWheel>")

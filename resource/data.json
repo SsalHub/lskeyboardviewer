@@ -1,19 +1,1948 @@
 {
-    "soldier": {
-        "None": {
-            "name": "",
-            "abbr": [],
-            "chosung": ""
-        },
-        "1": {
-            "name": "아이언나이트",
-            "abbr": ["아연", "아나", "아연"],
-            "chosung": "ㅇㅇㅇㄴㅇㅌ"
-        },
-        "2": {
-            "name": "캡틴후크",
-            "abbr": ["후크", "캡후"],
-            "chosung": "ㅋㅌㅎㅋ"
-        }
-}
+    "attack": {
+        "name": "공격",
+        "keyword": [
+            "ㄱㄱ"
+        ],
+        "type": "basic"
+    },
+    "guard": {
+        "name": "방어",
+        "keyword": [
+            "ㅂㅇ"
+        ],
+        "type": "basic"
+    },
+    "jump": {
+        "name": "점프",
+        "keyword": [
+            "ㅈㅍ"
+        ],
+        "type": "basic"
+    },
+    "weapon": {
+        "name": "무기",
+        "keyword": [
+            "ㅁㄱ"
+        ],
+        "type": "skill"
+    },
+    "armor": {
+        "name": "갑옷",
+        "keyword": [
+            "ㄱㅇ"
+        ],
+        "type": "skill"
+    },
+    "helmet": {
+        "name": "투구",
+        "keyword": [
+            "ㅌㄱ"
+        ],
+        "type": "skill"
+    },
+    "trinket": {
+        "name": "망토",
+        "keyword": [
+            "ㅁㅌ"
+        ],
+        "type": "skill"
+    },
+    "1": {
+        "name": "아이언나이트",
+        "keyword": [
+            "ㅇㅇㅇㄴㅇㅌ"
+        ],
+        "type": "char"
+    },
+    "2": {
+        "name": "캡틴후크",
+        "keyword": [
+            "ㅋㅌㅎㅋ"
+        ],
+        "type": "char"
+    },
+    "3": {
+        "name": "웨스턴건맨",
+        "keyword": [
+            "ㅇㅅㅌㄱㅁ"
+        ],
+        "type": "char"
+    },
+    "4": {
+        "name": "파이어메이지",
+        "keyword": [
+            "ㅍㅇㅇㅁㅇㅈ"
+        ],
+        "type": "char"
+    },
+    "5": {
+        "name": "사이버메딕",
+        "keyword": [
+            "ㅅㅇㅂㅁㄷ"
+        ],
+        "type": "char"
+    },
+    "6": {
+        "name": "세비지버서커",
+        "keyword": [
+            "ㅅㅂㅈㅂㅅㅋ"
+        ],
+        "type": "char"
+    },
+    "7": {
+        "name": "로빈후드",
+        "keyword": [
+            "ㄹㅂㅎㄷ"
+        ],
+        "type": "char"
+    },
+    "8": {
+        "name": "크레이지마이너",
+        "keyword": [
+            "ㅋㄹㅇㅈㅁㅇㄴ"
+        ],
+        "type": "char"
+    },
+    "9": {
+        "name": "아이스메이지",
+        "keyword": [
+            "ㅇㅇㅅㅁㅇㅈ"
+        ],
+        "type": "char"
+    },
+    "10": {
+        "name": "육군보병",
+        "keyword": [
+            "ㅇㄱㅂㅂ"
+        ],
+        "type": "char"
+    },
+    "11": {
+        "name": "스페이스솔져",
+        "keyword": [
+            "ㅅㅍㅇㅅㅅㅈ"
+        ],
+        "type": "char"
+    },
+    "12": {
+        "name": "쉐도우어쌔신",
+        "keyword": [
+            "ㅅㄷㅇㅇㅆㅅ"
+        ],
+        "type": "char"
+    },
+    "13": {
+        "name": "빅토리디펜더",
+        "keyword": [
+            "ㅂㅌㄹㄷㅍㄷ"
+        ],
+        "type": "char"
+    },
+    "14": {
+        "name": "청룡관우",
+        "keyword": [
+            "ㅊㄹㄱㅇ"
+        ],
+        "type": "char"
+    },
+    "15": {
+        "name": "와일드복서",
+        "keyword": [
+            "ㅇㅇㄷㅂㅅ"
+        ],
+        "type": "char"
+    },
+    "16": {
+        "name": "바이킹스벤",
+        "keyword": [
+            "ㅂㅇㅋㅅㅂ"
+        ],
+        "type": "char"
+    },
+    "17": {
+        "name": "카게닌자",
+        "keyword": [
+            "ㅋㄱㄴㅈ"
+        ],
+        "type": "char"
+    },
+    "18": {
+        "name": "머스킷티어",
+        "keyword": [
+            "ㅁㅅㅋㅌㅇ"
+        ],
+        "type": "char"
+    },
+    "19": {
+        "name": "태권무도가",
+        "keyword": [
+            "ㅌㄱㅁㄷㄱ"
+        ],
+        "type": "char"
+    },
+    "20": {
+        "name": "암흑주술사",
+        "keyword": [
+            "ㅇㅎㅈㅅㅅ"
+        ],
+        "type": "char"
+    },
+    "21": {
+        "name": "스마일조커",
+        "keyword": [
+            "ㅅㅁㅇㅈㅋ"
+        ],
+        "type": "char"
+    },
+    "22": {
+        "name": "트레져헌터",
+        "keyword": [
+            "ㅌㄹㅈㅎㅌ"
+        ],
+        "type": "char"
+    },
+    "23": {
+        "name": "사신",
+        "keyword": [
+            "ㅅㅅ"
+        ],
+        "type": "char"
+    },
+    "24": {
+        "name": "라이트닝메이지",
+        "keyword": [
+            "ㄹㅇㅌㄴㅁㅇㅈ"
+        ],
+        "type": "char"
+    },
+    "25": {
+        "name": "마이티팔라딘",
+        "keyword": [
+            "ㅁㅇㅌㅍㄹㄷ"
+        ],
+        "type": "char"
+    },
+    "26": {
+        "name": "마피아",
+        "keyword": [
+            "ㅁㅍㅇ"
+        ],
+        "type": "char"
+    },
+    "27": {
+        "name": "타이거",
+        "keyword": [
+            "ㅌㅇㄱ"
+        ],
+        "type": "char"
+    },
+    "28": {
+        "name": "살라딘",
+        "keyword": [
+            "ㅅㄹㄷ"
+        ],
+        "type": "char"
+    },
+    "29": {
+        "name": "데스나이트",
+        "keyword": [
+            "ㄷㅅㄴㅇㅌ"
+        ],
+        "type": "char"
+    },
+    "30": {
+        "name": "솔배드가이",
+        "keyword": [
+            "ㅅㅂㄷㄱㅇ"
+        ],
+        "type": "char"
+    },
+    "31": {
+        "name": "헤비크래셔",
+        "keyword": [
+            "ㅎㅂㅋㄹㅅ"
+        ],
+        "type": "char"
+    },
+    "32": {
+        "name": "스페셜포스",
+        "keyword": [
+            "ㅅㅍㅅㅍㅅ"
+        ],
+        "type": "char"
+    },
+    "33": {
+        "name": "사무라이",
+        "keyword": [
+            "ㅅㅁㄹㅇ"
+        ],
+        "type": "char"
+    },
+    "34": {
+        "name": "러닝백",
+        "keyword": [
+            "ㄹㄴㅂ"
+        ],
+        "type": "char"
+    },
+    "35": {
+        "name": "카오스다래",
+        "keyword": [
+            "ㅋㅇㅅㄷㄹ"
+        ],
+        "type": "char"
+    },
+    "36": {
+        "name": "조로",
+        "keyword": [
+            "ㅈㄹ"
+        ],
+        "type": "char"
+    },
+    "37": {
+        "name": "진키사라기",
+        "keyword": [
+            "ㅈㅋㅅㄹㄱ"
+        ],
+        "type": "char"
+    },
+    "38": {
+        "name": "네크로맨서",
+        "keyword": [
+            "ㄴㅋㄹㅁㅅ"
+        ],
+        "type": "char"
+    },
+    "39": {
+        "name": "왕소룡",
+        "keyword": [
+            "ㅇㅅㄹ"
+        ],
+        "type": "char"
+    },
+    "40": {
+        "name": "스파르타쿠스",
+        "keyword": [
+            "ㅅㅍㄹㅌㅋㅅ"
+        ],
+        "type": "char"
+    },
+    "41": {
+        "name": "현암",
+        "keyword": [
+            "ㅎㅇ"
+        ],
+        "type": "char"
+    },
+    "42": {
+        "name": "프로레슬러",
+        "keyword": [
+            "ㅍㄹㄹㅅㄹ"
+        ],
+        "type": "char"
+    },
+    "43": {
+        "name": "마법창병",
+        "keyword": [
+            "ㅁㅂㅊㅂ"
+        ],
+        "type": "char"
+    },
+    "44": {
+        "name": "인형사",
+        "keyword": [
+            "ㅇㅎㅅ"
+        ],
+        "type": "char"
+    },
+    "45": {
+        "name": "호크아이",
+        "keyword": [
+            "ㅎㅋㅇㅇ"
+        ],
+        "type": "char"
+    },
+    "46": {
+        "name": "데빌레인저",
+        "keyword": [
+            "ㄷㅂㄹㅇㅈ"
+        ],
+        "type": "char"
+    },
+    "47": {
+        "name": "랜서",
+        "keyword": [
+            "ㄹㅅ"
+        ],
+        "type": "char"
+    },
+    "48": {
+        "name": "프리스트",
+        "keyword": [
+            "ㅍㄹㅅㅌ"
+        ],
+        "type": "char"
+    },
+    "49": {
+        "name": "카포에라",
+        "keyword": [
+            "ㅋㅍㅇㄹ"
+        ],
+        "type": "char"
+    },
+    "50": {
+        "name": "라그나",
+        "keyword": [
+            "ㄹㄱㄴ"
+        ],
+        "type": "char"
+    },
+    "51": {
+        "name": "손오공",
+        "keyword": [
+            "ㅅㅇㄱ"
+        ],
+        "type": "char"
+    },
+    "52": {
+        "name": "백동수",
+        "keyword": [
+            "ㅂㄷㅅ"
+        ],
+        "type": "char"
+    },
+    "53": {
+        "name": "인디언",
+        "keyword": [
+            "ㅇㄷㅇ"
+        ],
+        "type": "char"
+    },
+    "54": {
+        "name": "하자마",
+        "keyword": [
+            "ㅎㅈㅁ"
+        ],
+        "type": "char"
+    },
+    "55": {
+        "name": "록스타",
+        "keyword": [
+            "ㄹㅅㅌ"
+        ],
+        "type": "char"
+    },
+    "56": {
+        "name": "창천협객",
+        "keyword": [
+            "ㅊㅊㅎㄱ"
+        ],
+        "type": "char"
+    },
+    "57": {
+        "name": "웨어울프",
+        "keyword": [
+            "ㅇㅇㅇㅍ"
+        ],
+        "type": "char"
+    },
+    "58": {
+        "name": "메이",
+        "keyword": [
+            "ㅁㅇ"
+        ],
+        "type": "char"
+    },
+    "59": {
+        "name": "무에타이",
+        "keyword": [
+            "ㅁㅇㅌㅇ"
+        ],
+        "type": "char"
+    },
+    "60": {
+        "name": "카오스레퍼드",
+        "keyword": [
+            "ㅋㅇㅅㄹㅍㄷ"
+        ],
+        "type": "char"
+    },
+    "61": {
+        "name": "가토가챠",
+        "keyword": [
+            "ㄱㅌㄱㅊ"
+        ],
+        "type": "char"
+    },
+    "62": {
+        "name": "레이첼알카드",
+        "keyword": [
+            "ㄹㅇㅊㅇㅋㄷ"
+        ],
+        "type": "char"
+    },
+    "63": {
+        "name": "일지매",
+        "keyword": [
+            "ㅇㅈㅁ"
+        ],
+        "type": "char"
+    },
+    "64": {
+        "name": "홍길동",
+        "keyword": [
+            "ㅎㄱㄷ"
+        ],
+        "type": "char"
+    },
+    "65": {
+        "name": "위치",
+        "keyword": [
+            "ㅇㅊ"
+        ],
+        "type": "char"
+    },
+    "66": {
+        "name": "v-메카닉",
+        "keyword": [
+            "v-ㅁㅋㄴ"
+        ],
+        "type": "char"
+    },
+    "67": {
+        "name": "아서펜드래건",
+        "keyword": [
+            "ㅇㅅㅍㄷㄹㄱ"
+        ],
+        "type": "char"
+    },
+    "68": {
+        "name": "상산조자룡",
+        "keyword": [
+            "ㅅㅅㅈㅈㄹ"
+        ],
+        "type": "char"
+    },
+    "69": {
+        "name": "카드마술사",
+        "keyword": [
+            "ㅋㄷㅁㅅㅅ"
+        ],
+        "type": "char"
+    },
+    "70": {
+        "name": "바바리안",
+        "keyword": [
+            "ㅂㅂㄹㅇ"
+        ],
+        "type": "char"
+    },
+    "71": {
+        "name": "야가미 이오리",
+        "keyword": [
+            "ㅇㄱㅁ ㅇㅇㄹ"
+        ],
+        "type": "char"
+    },
+    "72": {
+        "name": "달타냥",
+        "keyword": [
+            "ㄷㅌㄴ"
+        ],
+        "type": "char"
+    },
+    "73": {
+        "name": "그래피티",
+        "keyword": [
+            "ㄱㄹㅍㅌ"
+        ],
+        "type": "char"
+    },
+    "74": {
+        "name": "하오마루",
+        "keyword": [
+            "ㅎㅇㅁㄹ"
+        ],
+        "type": "char"
+    },
+    "75": {
+        "name": "귀신",
+        "keyword": [
+            "ㄱㅅ"
+        ],
+        "type": "char"
+    },
+    "76": {
+        "name": "마도사",
+        "keyword": [
+            "ㅁㄷㅅ"
+        ],
+        "type": "char"
+    },
+    "77": {
+        "name": "시라누이마이",
+        "keyword": [
+            "ㅅㄹㄴㅇㅁㅇ"
+        ],
+        "type": "char"
+    },
+    "78": {
+        "name": "제갈량",
+        "keyword": [
+            "ㅈㄱㄹ"
+        ],
+        "type": "char"
+    },
+    "79": {
+        "name": "기공사",
+        "keyword": [
+            "ㄱㄱㅅ"
+        ],
+        "type": "char"
+    },
+    "80": {
+        "name": "유미라",
+        "keyword": [
+            "ㅇㅁㄹ"
+        ],
+        "type": "char"
+    },
+    "81": {
+        "name": "루시퍼",
+        "keyword": [
+            "ㄹㅅㅍ"
+        ],
+        "type": "char"
+    },
+    "82": {
+        "name": "쿠사나기쿄",
+        "keyword": [
+            "ㅋㅅㄴㄱㅋ"
+        ],
+        "type": "char"
+    },
+    "83": {
+        "name": "데스페라도",
+        "keyword": [
+            "ㄷㅅㅍㄹㄷ"
+        ],
+        "type": "char"
+    },
+    "84": {
+        "name": "나코루루",
+        "keyword": [
+            "ㄴㅋㄹㄹ"
+        ],
+        "type": "char"
+    },
+    "85": {
+        "name": "디스트로이어",
+        "keyword": [
+            "ㄷㅅㅌㄹㅇㅇ"
+        ],
+        "type": "char"
+    },
+    "86": {
+        "name": "미카엘",
+        "keyword": [
+            "ㅁㅋㅇ"
+        ],
+        "type": "char"
+    },
+    "87": {
+        "name": "불도깨비",
+        "keyword": [
+            "ㅂㄷㄲㅂ"
+        ],
+        "type": "char"
+    },
+    "88": {
+        "name": "구미호",
+        "keyword": [
+            "ㄱㅁㅎ"
+        ],
+        "type": "char"
+    },
+    "89": {
+        "name": "피터팬",
+        "keyword": [
+            "ㅍㅌㅍ"
+        ],
+        "type": "char"
+    },
+    "90": {
+        "name": "드래곤라이더",
+        "keyword": [
+            "ㄷㄹㄱㄹㅇㄷ"
+        ],
+        "type": "char"
+    },
+    "91": {
+        "name": "서큐버스",
+        "keyword": [
+            "ㅅㅋㅂㅅ"
+        ],
+        "type": "char"
+    },
+    "92": {
+        "name": "사이보그",
+        "keyword": [
+            "ㅅㅇㅂㄱ"
+        ],
+        "type": "char"
+    },
+    "93": {
+        "name": "트리니티",
+        "keyword": [
+            "ㅌㄹㄴㅌ"
+        ],
+        "type": "char"
+    },
+    "94": {
+        "name": "풍월주",
+        "keyword": [
+            "ㅍㅇㅈ"
+        ],
+        "type": "char"
+    },
+    "95": {
+        "name": "윈드러너",
+        "keyword": [
+            "ㅇㄷㄹㄴ"
+        ],
+        "type": "char"
+    },
+    "96": {
+        "name": "수도승",
+        "keyword": [
+            "ㅅㄷㅅ"
+        ],
+        "type": "char"
+    },
+    "97": {
+        "name": "아누비스",
+        "keyword": [
+            "ㅇㄴㅂㅅ"
+        ],
+        "type": "char"
+    },
+    "98": {
+        "name": "칼리",
+        "keyword": [
+            "ㅋㄹ"
+        ],
+        "type": "char"
+    },
+    "99": {
+        "name": "스카디",
+        "keyword": [
+            "ㅅㅋㄷ"
+        ],
+        "type": "char"
+    },
+    "100": {
+        "name": "악령도둑",
+        "keyword": [
+            "ㅇㄹㄷㄷ"
+        ],
+        "type": "char"
+    },
+    "101": {
+        "name": "진모리",
+        "keyword": [
+            "ㅈㅁㄹ"
+        ],
+        "type": "char"
+    },
+    "102": {
+        "name": "뱀파이어",
+        "keyword": [
+            "ㅂㅍㅇㅇ"
+        ],
+        "type": "char"
+    },
+    "103": {
+        "name": "프로젝트k",
+        "keyword": [
+            "ㅍㄹㅈㅌk"
+        ],
+        "type": "char"
+    },
+    "104": {
+        "name": "하쿠멘",
+        "keyword": [
+            "ㅎㅋㅁ"
+        ],
+        "type": "char"
+    },
+    "105": {
+        "name": "악마",
+        "keyword": [
+            "ㅇㅁ"
+        ],
+        "type": "char"
+    },
+    "106": {
+        "name": "메이드",
+        "keyword": [
+            "ㅁㅇㄷ"
+        ],
+        "type": "char"
+    },
+    "107": {
+        "name": "플래시",
+        "keyword": [
+            "ㅍㄹㅅ"
+        ],
+        "type": "char"
+    },
+    "108": {
+        "name": "이비",
+        "keyword": [
+            "ㅇㅂ"
+        ],
+        "type": "char"
+    },
+    "109": {
+        "name": "초능력자",
+        "keyword": [
+            "ㅊㄴㄹㅈ"
+        ],
+        "type": "char"
+    },
+    "110": {
+        "name": "서든어택",
+        "keyword": [
+            "ㅅㄷㅇㅌ"
+        ],
+        "type": "char"
+    },
+    "111": {
+        "name": "슬래셔",
+        "keyword": [
+            "ㅅㄹㅅ"
+        ],
+        "type": "char"
+    },
+    "112": {
+        "name": "손태양",
+        "keyword": [
+            "ㅅㅌㅇ"
+        ],
+        "type": "char"
+    },
+    "113": {
+        "name": "어스메이지",
+        "keyword": [
+            "ㅇㅅㅁㅇㅈ"
+        ],
+        "type": "char"
+    },
+    "114": {
+        "name": "타이탄",
+        "keyword": [
+            "ㅌㅇㅌ"
+        ],
+        "type": "char"
+    },
+    "115": {
+        "name": "초시공전사",
+        "keyword": [
+            "ㅊㅅㄱㅈㅅ"
+        ],
+        "type": "char"
+    },
+    "116": {
+        "name": "김윤성",
+        "keyword": [
+            "ㄱㅇㅅ"
+        ],
+        "type": "char"
+    },
+    "117": {
+        "name": "신비술사",
+        "keyword": [
+            "ㅅㅂㅅㅅ"
+        ],
+        "type": "char"
+    },
+    "118": {
+        "name": "갤럭시",
+        "keyword": [
+            "ㄱㄹㅅ"
+        ],
+        "type": "char"
+    },
+    "119": {
+        "name": "드래곤슬레이어",
+        "keyword": [
+            "ㄷㄹㄱㅅㄹㅇㅇ"
+        ],
+        "type": "char"
+    },
+    "120": {
+        "name": "낭인",
+        "keyword": [
+            "ㄴㅇ"
+        ],
+        "type": "char"
+    },
+    "121": {
+        "name": "스트라이커",
+        "keyword": [
+            "ㅅㅌㄹㅇㅋ"
+        ],
+        "type": "char"
+    },
+    "122": {
+        "name": "돈키호테",
+        "keyword": [
+            "ㄷㅋㅎㅌ"
+        ],
+        "type": "char"
+    },
+    "123": {
+        "name": "드네어쌔신",
+        "keyword": [
+            "ㄷㄴㅇㅆㅅ"
+        ],
+        "type": "char"
+    },
+    "124": {
+        "name": "썬더버드",
+        "keyword": [
+            "ㅆㄷㅂㄷ"
+        ],
+        "type": "char"
+    },
+    "125": {
+        "name": "앨리스",
+        "keyword": [
+            "ㅇㄹㅅ"
+        ],
+        "type": "char"
+    },
+    "126": {
+        "name": "리",
+        "keyword": [
+            "ㄹ"
+        ],
+        "type": "char"
+    },
+    "127": {
+        "name": "발키리",
+        "keyword": [
+            "ㅂㅋㄹ"
+        ],
+        "type": "char"
+    },
+    "128": {
+        "name": "박일표",
+        "keyword": [
+            "ㅂㅇㅍ"
+        ],
+        "type": "char"
+    },
+    "129": {
+        "name": "파괴자",
+        "keyword": [
+            "ㅍㄱㅈ"
+        ],
+        "type": "char"
+    },
+    "130": {
+        "name": "잭오랜턴",
+        "keyword": [
+            "ㅈㅇㄹㅌ"
+        ],
+        "type": "char"
+    },
+    "131": {
+        "name": "실랏",
+        "keyword": [
+            "ㅅㄹ"
+        ],
+        "type": "char"
+    },
+    "132": {
+        "name": "쉐도우레인저",
+        "keyword": [
+            "ㅅㄷㅇㄹㅇㅈ"
+        ],
+        "type": "char"
+    },
+    "133": {
+        "name": "다크나이트",
+        "keyword": [
+            "ㄷㅋㄴㅇㅌ"
+        ],
+        "type": "char"
+    },
+    "134": {
+        "name": "점퍼",
+        "keyword": [
+            "ㅈㅍ"
+        ],
+        "type": "char"
+    },
+    "135": {
+        "name": "엔지니어",
+        "keyword": [
+            "ㅇㅈㄴㅇ"
+        ],
+        "type": "char"
+    },
+    "136": {
+        "name": "검제",
+        "keyword": [
+            "ㄱㅈ"
+        ],
+        "type": "char"
+    },
+    "137": {
+        "name": "제우스",
+        "keyword": [
+            "ㅈㅇㅅ"
+        ],
+        "type": "char"
+    },
+    "138": {
+        "name": "F-세이버",
+        "keyword": [
+            "F-ㅅㅇㅂ"
+        ],
+        "type": "char"
+    },
+    "139": {
+        "name": "아웃복서",
+        "keyword": [
+            "ㅇㅇㅂㅅ"
+        ],
+        "type": "char"
+    },
+    "140": {
+        "name": "강림도령",
+        "keyword": [
+            "ㄱㄹㄷㄹ"
+        ],
+        "type": "char"
+    },
+    "141": {
+        "name": "하데스",
+        "keyword": [
+            "ㅎㄷㅅ"
+        ],
+        "type": "char"
+    },
+    "142": {
+        "name": "마검사",
+        "keyword": [
+            "ㅁㄱㅅ"
+        ],
+        "type": "char"
+    },
+    "143": {
+        "name": "나타",
+        "keyword": [
+            "ㄴㅌ"
+        ],
+        "type": "char"
+    },
+    "144": {
+        "name": "이순신",
+        "keyword": [
+            "ㅇㅅㅅ"
+        ],
+        "type": "char"
+    },
+    "145": {
+        "name": "에너지연구원",
+        "keyword": [
+            "ㅇㄴㅈㅇㄱㅇ"
+        ],
+        "type": "char"
+    },
+    "146": {
+        "name": "블레이드",
+        "keyword": [
+            "ㅂㄹㅇㄷ"
+        ],
+        "type": "char"
+    },
+    "147": {
+        "name": "투우사",
+        "keyword": [
+            "ㅌㅇㅅ"
+        ],
+        "type": "char"
+    },
+    "148": {
+        "name": "전우치",
+        "keyword": [
+            "ㅈㅇㅊ"
+        ],
+        "type": "char"
+    },
+    "149": {
+        "name": "환마강시",
+        "keyword": [
+            "ㅎㅁㄱㅅ"
+        ],
+        "type": "char"
+    },
+    "150": {
+        "name": "화학병",
+        "keyword": [
+            "ㅎㅎㅂ"
+        ],
+        "type": "char"
+    },
+    "151": {
+        "name": "체인매지션",
+        "keyword": [
+            "ㅊㅇㅁㅈㅅ"
+        ],
+        "type": "char"
+    },
+    "152": {
+        "name": "빨간망토",
+        "keyword": [
+            "ㅃㄱㅁㅌ"
+        ],
+        "type": "char"
+    },
+    "153": {
+        "name": "최종병기 스트라이더",
+        "keyword": [
+            "ㅊㅈㅂㄱ ㅅㅌㄹㅇㄷ"
+        ],
+        "type": "char"
+    },
+    "154": {
+        "name": "네피림",
+        "keyword": [
+            "ㄴㅍㄹ"
+        ],
+        "type": "char"
+    },
+    "155": {
+        "name": "파계승",
+        "keyword": [
+            "ㅍㄱㅅ"
+        ],
+        "type": "char"
+    },
+    "156": {
+        "name": "뮤턴트",
+        "keyword": [
+            "ㅁㅌㅌ"
+        ],
+        "type": "char"
+    },
+    "157": {
+        "name": "가네샤",
+        "keyword": [
+            "ㄱㄴㅅ"
+        ],
+        "type": "char"
+    },
+    "158": {
+        "name": "미르의전설",
+        "keyword": [
+            "ㅁㄹㅇㅈㅅ"
+        ],
+        "type": "char"
+    },
+    "159": {
+        "name": "쿠훌린",
+        "keyword": [
+            "ㅋㅎㄹ"
+        ],
+        "type": "char"
+    },
+    "160": {
+        "name": "갈포드",
+        "keyword": [
+            "ㄱㅍㄷ"
+        ],
+        "type": "char"
+    },
+    "161": {
+        "name": "태도귀무사",
+        "keyword": [
+            "ㅌㄷㄱㅁㅅ"
+        ],
+        "type": "char"
+    },
+    "162": {
+        "name": "드루이드",
+        "keyword": [
+            "ㄷㄹㅇㄷ"
+        ],
+        "type": "char"
+    },
+    "163": {
+        "name": "사신무 진",
+        "keyword": [
+            "ㅅㅅㅁ ㅈ"
+        ],
+        "type": "char"
+    },
+    "164": {
+        "name": "다크시즈",
+        "keyword": [
+            "ㄷㅋㅅㅈ"
+        ],
+        "type": "char"
+    },
+    "165": {
+        "name": "프레데터",
+        "keyword": [
+            "ㅍㄹㄷㅌ"
+        ],
+        "type": "char"
+    },
+    "166": {
+        "name": "크로우",
+        "keyword": [
+            "ㅋㄹㅇ"
+        ],
+        "type": "char"
+    },
+    "167": {
+        "name": "음양사",
+        "keyword": [
+            "ㅇㅇㅅ"
+        ],
+        "type": "char"
+    },
+    "168": {
+        "name": "블랙 스피어",
+        "keyword": [
+            "ㅂㄹ ㅅㅍㅇ"
+        ],
+        "type": "char"
+    },
+    "169": {
+        "name": "증오의 메피스토",
+        "keyword": [
+            "ㅈㅇㅇ ㅁㅍㅅㅌ"
+        ],
+        "type": "char"
+    },
+    "170": {
+        "name": "던파 거너",
+        "keyword": [
+            "ㄷㅍ ㄱㄴ"
+        ],
+        "type": "char"
+    },
+    "171": {
+        "name": "파워드",
+        "keyword": [
+            "ㅍㅇㄷ"
+        ],
+        "type": "char"
+    },
+    "172": {
+        "name": "함정전문가",
+        "keyword": [
+            "ㅎㅈㅈㅁㄱ"
+        ],
+        "type": "char"
+    },
+    "173": {
+        "name": "방탄소년단",
+        "keyword": [
+            "ㅂㅌㅅㄴㄷ"
+        ],
+        "type": "char"
+    },
+    "174": {
+        "name": "부두술사",
+        "keyword": [
+            "ㅂㄷㅅㅅ"
+        ],
+        "type": "char"
+    },
+    "175": {
+        "name": "서퍼",
+        "keyword": [
+            "ㅅㅍ"
+        ],
+        "type": "char"
+    },
+    "176": {
+        "name": "버블파이터",
+        "keyword": [
+            "ㅂㅂㅍㅇㅌ"
+        ],
+        "type": "char"
+    },
+    "177": {
+        "name": "홍진영",
+        "keyword": [
+            "ㅎㅈㅇ"
+        ],
+        "type": "char"
+    },
+    "178": {
+        "name": "심판관 우리엘",
+        "keyword": [
+            "ㅅㅍㄱ ㅇㄹㅇ"
+        ],
+        "type": "char"
+    },
+    "179": {
+        "name": "패트리어트",
+        "keyword": [
+            "ㅍㅌㄹㅇㅌ"
+        ],
+        "type": "char"
+    },
+    "180": {
+        "name": "풍신",
+        "keyword": [
+            "ㅍㅅ"
+        ],
+        "type": "char"
+    },
+    "181": {
+        "name": "워프",
+        "keyword": [
+            "ㅇㅍ"
+        ],
+        "type": "char"
+    },
+    "182": {
+        "name": "루돌프",
+        "keyword": [
+            "ㄹㄷㅍ"
+        ],
+        "type": "char"
+    },
+    "183": {
+        "name": "드릴",
+        "keyword": [
+            "ㄷㄹ"
+        ],
+        "type": "char"
+    },
+    "184": {
+        "name": "대마도사 스트레인져",
+        "keyword": [
+            "ㄷㅁㄷㅅ ㅅㅌㄹㅇㅈ"
+        ],
+        "type": "char"
+    },
+    "185": {
+        "name": "가고일",
+        "keyword": [
+            "ㄱㄱㅇ"
+        ],
+        "type": "char"
+    },
+    "186": {
+        "name": "해커",
+        "keyword": [
+            "ㅎㅋ"
+        ],
+        "type": "char"
+    },
+    "187": {
+        "name": "캐논",
+        "keyword": [
+            "ㅋㄴ"
+        ],
+        "type": "char"
+    },
+    "188": {
+        "name": "마공학자",
+        "keyword": [
+            "ㅁㄱㅎㅈ"
+        ],
+        "type": "char"
+    },
+    "189": {
+        "name": "배가본드",
+        "keyword": [
+            "ㅂㄱㅂㄷ"
+        ],
+        "type": "char"
+    },
+    "190": {
+        "name": "쿵푸술사",
+        "keyword": [
+            "ㅋㅍㅅㅅ"
+        ],
+        "type": "char"
+    },
+    "191": {
+        "name": "나이트메어",
+        "keyword": [
+            "ㄴㅇㅌㅁㅇ"
+        ],
+        "type": "char"
+    },
+    "192": {
+        "name": "타락의 아자젤",
+        "keyword": [
+            "ㅌㄹㅇ ㅇㅈㅈ"
+        ],
+        "type": "char"
+    },
+    "193": {
+        "name": "메가 에이젼트",
+        "keyword": [
+            "ㅁㄱ ㅇㅇㅈㅌ"
+        ],
+        "type": "char"
+    },
+    "194": {
+        "name": "네오",
+        "keyword": [
+            "ㄴㅇ"
+        ],
+        "type": "char"
+    },
+    "195": {
+        "name": "산타",
+        "keyword": [
+            "ㅅㅌ"
+        ],
+        "type": "char"
+    },
+    "196": {
+        "name": "잭프로스트",
+        "keyword": [
+            "ㅈㅍㄹㅅㅌ"
+        ],
+        "type": "char"
+    },
+    "197": {
+        "name": "오토마톤",
+        "keyword": [
+            "ㅇㅌㅁㅌ"
+        ],
+        "type": "char"
+    },
+    "198": {
+        "name": "가드너",
+        "keyword": [
+            "ㄱㄷㄴ"
+        ],
+        "type": "char"
+    },
+    "199": {
+        "name": "초인야구단",
+        "keyword": [
+            "ㅊㅇㅇㄱㄷ"
+        ],
+        "type": "char"
+    },
+    "200": {
+        "name": "격투가",
+        "keyword": [
+            "ㄱㅌㄱ"
+        ],
+        "type": "char"
+    },
+    "201": {
+        "name": "축구선수",
+        "keyword": [
+            "ㅊㄱㅅㅅ"
+        ],
+        "type": "char"
+    },
+    "202": {
+        "name": "발칸",
+        "keyword": [
+            "ㅂㅋ"
+        ],
+        "type": "char"
+    },
+    "203": {
+        "name": "버블",
+        "keyword": [
+            "ㅂㅂ"
+        ],
+        "type": "char"
+    },
+    "204": {
+        "name": "체인지온",
+        "keyword": [
+            "ㅊㅇㅈㅇ"
+        ],
+        "type": "char"
+    },
+    "205": {
+        "name": "무림고수",
+        "keyword": [
+            "ㅁㄹㄱㅅ"
+        ],
+        "type": "char"
+    },
+    "206": {
+        "name": "유령",
+        "keyword": [
+            "ㅇㄹ"
+        ],
+        "type": "char"
+    },
+    "207": {
+        "name": "슬로프",
+        "keyword": [
+            "ㅅㄹㅍ"
+        ],
+        "type": "char"
+    },
+    "208": {
+        "name": "오딘",
+        "keyword": [
+            "ㅇㄷ"
+        ],
+        "type": "char"
+    },
+    "209": {
+        "name": "한조",
+        "keyword": [
+            "ㅎㅈ"
+        ],
+        "type": "char"
+    },
+    "210": {
+        "name": "피닉스",
+        "keyword": [
+            "ㅍㄴㅅ"
+        ],
+        "type": "char"
+    },
+    "211": {
+        "name": "티메가테",
+        "keyword": [
+            "ㅌㅁㄱㅌ"
+        ],
+        "type": "char"
+    },
+    "212": {
+        "name": "오멘",
+        "keyword": [
+            "ㅇㅁ"
+        ],
+        "type": "char"
+    },
+    "213": {
+        "name": "매드블라스터",
+        "keyword": [
+            "ㅁㄷㅂㄹㅅㅌ"
+        ],
+        "type": "char"
+    },
+    "214": {
+        "name": "Dr. 스파이더",
+        "keyword": [
+            "Dr. ㅅㅍㅇㄷ"
+        ],
+        "type": "char"
+    },
+    "215": {
+        "name": "괴도",
+        "keyword": [
+            "ㄱㄷ"
+        ],
+        "type": "char"
+    },
+    "216": {
+        "name": "미드나잇",
+        "keyword": [
+            "ㅁㄷㄴㅇ"
+        ],
+        "type": "char"
+    },
+    "217": {
+        "name": "로켓런처",
+        "keyword": [
+            "ㄹㅋㄹㅊ"
+        ],
+        "type": "char"
+    },
+    "218": {
+        "name": "차원술사",
+        "keyword": [
+            "ㅊㅇㅅㅅ"
+        ],
+        "type": "char"
+    },
+    "219": {
+        "name": "파파라치",
+        "keyword": [
+            "ㅍㅍㄹㅊ"
+        ],
+        "type": "char"
+    },
+    "220": {
+        "name": "티르",
+        "keyword": [
+            "ㅌㄹ"
+        ],
+        "type": "char"
+    },
+    "221": {
+        "name": "뉴클리어솔져",
+        "keyword": [
+            "ㄴㅋㄹㅇㅅㅈ"
+        ],
+        "type": "char"
+    },
+    "222": {
+        "name": "얼음신",
+        "keyword": [
+            "ㅇㅇㅅ"
+        ],
+        "type": "char"
+    },
+    "223": {
+        "name": "포세이돈",
+        "keyword": [
+            "ㅍㅅㅇㄷ"
+        ],
+        "type": "char"
+    },
+    "224": {
+        "name": "스카이워커",
+        "keyword": [
+            "ㅅㅋㅇㅇㅋ"
+        ],
+        "type": "char"
+    },
+    "225": {
+        "name": "권왕",
+        "keyword": [
+            "ㄱㅇ"
+        ],
+        "type": "char"
+    },
+    "226": {
+        "name": "제네시스",
+        "keyword": [
+            "ㅈㄴㅅㅅ"
+        ],
+        "type": "char"
+    },
+    "227": {
+        "name": "릴리",
+        "keyword": [
+            "ㄹㄹ"
+        ],
+        "type": "char"
+    },
+    "228": {
+        "name": "헤라클레스",
+        "keyword": [
+            "ㅎㄹㅋㄹㅅ"
+        ],
+        "type": "char"
+    },
+    "229": {
+        "name": "사이즈",
+        "keyword": [
+            "ㅅㅇㅈ"
+        ],
+        "type": "char"
+    },
+    "230": {
+        "name": "이브",
+        "keyword": [
+            "ㅇㅂ"
+        ],
+        "type": "char"
+    },
+    "231": {
+        "name": "마그네틱",
+        "keyword": [
+            "ㅁㄱㄴㅌ"
+        ],
+        "type": "char"
+    },
+    "232": {
+        "name": "태을진인",
+        "keyword": [
+            "ㅌㅇㅈㅇ"
+        ],
+        "type": "char"
+    },
+    "233": {
+        "name": "가디언",
+        "keyword": [
+            "ㄱㄷㅇ"
+        ],
+        "type": "char"
+    },
+    "234": {
+        "name": "배니쉬",
+        "keyword": [
+            "ㅂㄴㅅ"
+        ],
+        "type": "char"
+    },
+    "235": {
+        "name": "데몬로드",
+        "keyword": [
+            "ㄷㅁㄹㄷ"
+        ],
+        "type": "char"
+    },
+    "236": {
+        "name": "강령술사",
+        "keyword": [
+            "ㄱㄹㅅㅅ"
+        ],
+        "type": "char"
+    },
+    "237": {
+        "name": "퓨리어스",
+        "keyword": [
+            "ㅍㄹㅇㅅ"
+        ],
+        "type": "char"
+    },
+    "238": {
+        "name": "리퀴드",
+        "keyword": [
+            "ㄹㅋㄷ"
+        ],
+        "type": "char"
+    },
+    "239": {
+        "name": "기가슈트",
+        "keyword": [
+            "ㄱㄱㅅㅌ"
+        ],
+        "type": "char"
+    },
+    "240": {
+        "name": "전투공병",
+        "keyword": [
+            "ㅈㅌㄱㅂ"
+        ],
+        "type": "char"
+    },
+    "241": {
+        "name": "로얄가드",
+        "keyword": [
+            "ㄹㅇㄱㄷ"
+        ],
+        "type": "char"
+    },
+    "242": {
+        "name": "바리",
+        "keyword": [
+            "ㅂㄹ"
+        ],
+        "type": "char"
+    },
+    "243": {
+        "name": "펜리르",
+        "keyword": [
+            "ㅍㄹㄹ"
+        ],
+        "type": "char"
+    },
+    "244": {
+        "name": "어벤져",
+        "keyword": [
+            "ㅇㅂㅈ"
+        ],
+        "type": "char"
+    },
+    "245": {
+        "name": "엑자일",
+        "keyword": [
+            "ㅇㅈㅇ"
+        ],
+        "type": "char"
+    },
+    "246": {
+        "name": "아수라",
+        "keyword": [
+            "ㅇㅅㄹ"
+        ],
+        "type": "char"
+    },
+    "247": {
+        "name": "볼케이노",
+        "keyword": [
+            "ㅂㅋㅇㄴ"
+        ],
+        "type": "char"
+    },
+    "248": {
+        "name": "플로리아",
+        "keyword": [
+            "ㅍㄹㄹㅇ"
+        ],
+        "type": "char"
+    },
+    "249": {
+        "name": "무법자",
+        "keyword": [
+            "ㅁㅂㅈ"
+        ],
+        "type": "char"
+    },
+    "250": {
+        "name": "누아다",
+        "keyword": [
+            "ㄴㅇㄷ"
+        ],
+        "type": "char"
+    },
+    "251": {
+        "name": "연금술사",
+        "keyword": [
+            "ㅇㄱㅅㅅ"
+        ],
+        "type": "char"
+    },
+    "252": {
+        "name": "프라이슈츠",
+        "keyword": [
+            "ㅍㄹㅇㅅㅊ"
+        ],
+        "type": "char"
+    },
+    "253": {
+        "name": "초월자",
+        "keyword": [
+            "ㅊㅇㅈ"
+        ],
+        "type": "char"
+    },
+    "254": {
+        "name": "엘라임",
+        "keyword": [
+            "ㅇㄹㅇ"
+        ],
+        "type": "char"
+    },
+    "255": {
+        "name": "리치",
+        "keyword": [
+            "ㄹㅊ"
+        ],
+        "type": "char"
+    },
+    "256": {
+        "name": "신성사제",
+        "keyword": [
+            "ㅅㅅㅅㅈ"
+        ],
+        "type": "char"
+    },
+    "257": {
+        "name": "패러사이트",
+        "keyword": [
+            "ㅍㄹㅅㅇㅌ"
+        ],
+        "type": "char"
+    },
+    "258": {
+        "name": "브레이커",
+        "keyword": [
+            "ㅂㄹㅇㅋ"
+        ],
+        "type": "char"
+    },
+    "259": {
+        "name": "고대정령",
+        "keyword": [
+            "ㄱㄷㅈㄹ"
+        ],
+        "type": "char"
+    },
+    "260": {
+        "name": "카르나",
+        "keyword": [
+            "ㅋㄹㄴ"
+        ],
+        "type": "char"
+    },
+    "261": {
+        "name": "글라키에스",
+        "keyword": [
+            "ㄱㄹㅋㅇㅅ"
+        ],
+        "type": "char"
+    },
+    "262": {
+        "name": ".",
+        "keyword": [
+            "."
+        ],
+        "type": "char"
+    },
+    "505": {
+        "name": "R-사이버메딕",
+        "keyword": [
+            "R-ㅅㅇㅂㅁㄷ"
+        ],
+        "type": "char"
+    },
+    "509": {
+        "name": "R-메딕",
+        "keyword": [
+            "R-ㅁㄷ"
+        ],
+        "type": "char"
+    },
+    "514": {
+        "name": "R-관우",
+        "keyword": [
+            "R-ㄱㅇ"
+        ],
+        "type": "char"
+    },
+    "807": {
+        "name": "소원",
+        "keyword": [
+            "ㅅㅇ"
+        ],
+        "type": "char"
+    },
+    "885": {
+        "name": "유주",
+        "keyword": [
+            "ㅇㅈ"
+        ],
+        "type": "char"
+    },
+    "902": {
+        "name": "신비",
+        "keyword": [
+            "ㅅㅂ"
+        ],
+        "type": "char"
+    },
+    "920": {
+        "name": "예린",
+        "keyword": [
+            "ㅇㄹ"
+        ],
+        "type": "char"
+    },
+    "926": {
+        "name": "엄지",
+        "keyword": [
+            "ㅇㅈ"
+        ],
+        "type": "char"
+    },
+    "938": {
+        "name": "은하",
+        "keyword": [
+            "ㅇㅎ"
+        ],
+        "type": "char"
+    }
 }
