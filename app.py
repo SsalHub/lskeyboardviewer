@@ -6,27 +6,71 @@ from PIL import Image
 import os
 import json
 import configparser
+import sys
 
-class TransparencySlider(ctk.CTkToplevel):
-    """투명도 조절을 위한 별도의 팝업 창"""
+class TransparencySettings(ctk.CTkToplevel):
+    """grab_set()을 사용하여 메인 오버레이보다 항상 위에 뜨도록 강제한 버전"""
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
-        self.title("설정")
-        self.geometry("250x100")
-        self.attributes("-topmost", True)
+        self.title("투명도 설정")
+        self.geometry("300x160")
+        
+        # [핵심 수정] 부모 창보다 위에 뜨도록 하는 3종 세트
+        self.attributes("-topmost", True)  # 최상단 고정
+        self.transient(parent)             # 부모 창에 종속시킴 (항상 부모 위에 위치)
+        
+        # 창이 완전히 생성된 후 이벤트를 독점하도록 설정
+        self.wait_visibility()             # 창이 보일 때까지 대기
+        self.grab_set()                    # 이 창을 닫기 전까지 부모 창 조작 불가 및 레이어 고정
+        
         self.resizable(False, False)
         
-        self.label = ctk.CTkLabel(self, text=f"투명도 조절: {int(parent.current_alpha * 100)}%")
-        self.label.pack(pady=(10, 0))
+        # UI 구성
+        self.label = ctk.CTkLabel(self, text="오버레이 투명도", font=("Arial", 14, "bold"))
+        self.label.pack(pady=(15, 0))
 
-        self.slider = ctk.CTkSlider(self, from_=0.1, to=1.0, command=self.update_alpha)
-        self.slider.set(parent.current_alpha)
-        self.slider.pack(pady=10, padx=20)
+        input_frame = ctk.CTkFrame(self, fg_color="transparent")
+        input_frame.pack(pady=10, padx=20, fill="x")
 
-    def update_alpha(self, value):
+        # 슬라이더 조절 (0.1 ~ 1.0)
+        self.slider = ctk.CTkSlider(input_frame, from_=0.1, to=1.0, command=self.update_from_slider)
+        self.slider.set(parent.current_alpha) 
+        self.slider.pack(side="left", expand=True, padx=(0, 10))
+
+        # 수치 직접 입력창
+        self.entry = ctk.CTkEntry(input_frame, width=60, justify="center")
+        self.entry.insert(0, str(int(parent.current_alpha * 100)))
+        self.entry.pack(side="left")
+        self.entry.bind("<Return>", self.update_from_entry)
+
+        ctk.CTkLabel(input_frame, text="%").pack(side="left", padx=2)
+
+        # 하단 닫기 버튼 (모달 창이므로 명확한 종료 버튼이 있으면 편리합니다)
+        self.close_btn = ctk.CTkButton(self, text="확인", width=100, command=self.destroy)
+        self.close_btn.pack(pady=(0, 10))
+
+    def update_from_slider(self, value):
         self.parent.set_transparency(value)
-        self.label.configure(text=f"투명도 조절: {int(value * 100)}%")
+        self.entry.delete(0, tk.END)
+        self.entry.insert(0, str(int(value * 100)))
+
+    def update_from_entry(self, event=None):
+        try:
+            val = int(self.entry.get())
+            if 10 <= val <= 100:
+                alpha = val / 100.0
+                self.parent.set_transparency(alpha)
+                self.slider.set(alpha)
+            else:
+                messagebox.showwarning("범위 오류", "10% ~ 100% 사이의 값을 입력해주세요.")
+        except ValueError:
+            messagebox.showerror("입력 오류", "숫자만 입력 가능합니다.")
+
+    def destroy(self):
+        """창을 닫을 때 grab_set 해제"""
+        self.grab_release()
+        super().destroy()
 
 class ImageSelectionPopup(ctk.CTkToplevel):
     """개별 키 편집용 이미지 선택 팝업 - ImageGalleryPopup 디자인과 매치"""
@@ -115,6 +159,9 @@ class ImageSelectionPopup(ctk.CTkToplevel):
 
 class ImageGalleryPopup(ctk.CTkToplevel):
     """용병 슬롯 전용 이미지 갤러리 팝업 - InGameKeyConfigPopup 컬러톤 매칭 버전"""
+    # 이미지 객체를 저장할 클래스 레벨 캐시
+    _image_cache = {}
+
     def __init__(self, parent, target_slot_key, callback):
         super().__init__(parent)
         self.parent = parent
@@ -123,7 +170,7 @@ class ImageGalleryPopup(ctk.CTkToplevel):
         self.title("캐릭터 검색 및 선택")
         self.geometry("480x750") 
         
-        # [수정] 배경색을 슬롯 팝업과 동일한 #E7E7E7으로 설정
+        # 디자인 매치: #E7E7E7 배경 및 파란색 헤더
         self.configure(fg_color="#E7E7E7")
         self.attributes("-topmost", True)
         self.transient(parent)
@@ -131,128 +178,126 @@ class ImageGalleryPopup(ctk.CTkToplevel):
 
         self.resource_path = "./resource/img/"
         self.json_path = "./resource/data.json"
-        
-        # 캐릭터 데이터 로드
         self.char_data = self.load_char_data()
         self.thumbnail_buttons = {} 
 
-        # [추가] 상단 파란색 바 (#2770CB) 매칭
+        # 상단 헤더 바 (#2770CB)
         self.header_bar = ctk.CTkFrame(self, height=50, fg_color="#2770CB", corner_radius=10)
         self.header_bar.pack(side="top", fill="x", padx=15, pady=(15, 5))
-        
         self.header_label = ctk.CTkLabel(self.header_bar, text="캐릭터 검색 및 선택", 
                                          font=("Arial", 16, "bold"), text_color="white")
         self.header_label.place(relx=0.5, rely=0.5, anchor="center")
 
-        # 검색창 레이아웃 (배경 투명하게 유지)
+        # 검색창 레이아웃
         search_frame = ctk.CTkFrame(self, fg_color="transparent")
         search_frame.pack(pady=10, padx=20, fill="x")
-
         self.search_entry = ctk.CTkEntry(search_frame, placeholder_text="번호, 이름, 초성 검색...", 
-                                         font=("Arial", 12), fg_color="white", text_color="black")
+                                         fg_color="white", text_color="black")
         self.search_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
         self.search_entry.bind("<Return>", self.on_search) 
+        ctk.CTkButton(search_frame, text="검색", width=60, fg_color="#2770CB", command=self.on_search).pack(side="left")
 
-        self.search_btn = ctk.CTkButton(search_frame, text="검색", width=60, fg_color="#2770CB", command=self.on_search)
-        self.search_btn.pack(side="left")
-
-        self.after(200, lambda: self.search_entry.focus_set())
-
-        # 이미지 출력 영역 (스크롤바 컬러 조정)
+        # [수정] 스크롤 영역 설정 및 마우스 휠 바인딩
         self.scroll_frame = ctk.CTkScrollableFrame(self, width=440, height=500, 
                                                    fg_color="transparent", 
                                                    scrollbar_button_color="#A0A0A0")
         self.scroll_frame.pack(pady=5, padx=10, fill="both", expand=True)
 
-        self.bind_all("<MouseWheel>", self._on_mousewheel)
+        # [수정] 팝업창 어디서든 휠이 작동하도록 바인딩
+        self.bind("<MouseWheel>", self._on_mousewheel)
+        self.after(200, lambda: self.search_entry.focus_set())
+        
         self.load_thumbnails()
 
-        # 하단 버튼 영역
         self.remove_btn = ctk.CTkButton(self, text="이미지 제거 (텍스트 모드)", fg_color="#A12F2F", 
-                                        hover_color="#822525", command=self.remove_binding)
+                                        command=self.remove_binding)
         self.remove_btn.pack(pady=15)
 
     def _on_mousewheel(self, event):
+        """마우스 휠 스크롤 로직 (단위 조정)"""
+        # Canvas의 yview_scroll을 사용하여 부드럽게 스크롤
         speed_multiplier = 100
         scroll_units = int(-1 * (event.delta / 120) * speed_multiplier)
         self.scroll_frame._parent_canvas.yview_scroll(scroll_units, "units")
-
-    def load_char_data(self):
-        """JSON 파일에서 캐릭터 정보를 읽어옵니다."""
-        if os.path.exists(self.json_path):
-            try:
-                # euc-kr 인코딩 유지
-                with open(self.json_path, "r", encoding="euc-kr") as f:
-                    data = json.load(f)
-                    return data.get("char", data)
-            except Exception as e:
-                print(f"JSON 로드 오류: {e}")
-        return {}
+    
+    def decompose_jamo(self, text):
+        """[기능 추가] ㄳ, ㄻ 등의 겹자음을 개별 자음으로 분리하여 검색어와 매칭"""
+        mapping = {
+            'ㄳ': 'ㄱㅅ', 'ㄵ': 'ㄴㅈ', 'ㄶ': 'ㄴㅎ', 'ㄺ': 'ㄹㄱ', 'ㄻ': 'ㄹㅁ', 
+            'ㄼ': 'ㄹㅂ', 'ㄽ': 'ㄹㅅ', 'ㄾ': 'ㄹㅌ', 'ㄿ': 'ㄹㅍ', 'ㅀ': 'ㄹㅎ', 'ㅄ': 'ㅂㅅ'
+        }
+        return "".join(mapping.get(c, c) for c in text)
 
     def load_thumbnails(self):
-        """이미 사용 중인 캐릭터는 흑백으로 처리하고 슬롯 스타일로 로드합니다."""
+        """[최적화] 이미지 리사이징 및 캐싱 적용 (Fail to allocate bitmap 오류 방지)"""
         bound_paths = []
-        # InGameKeyConfigPopup(parent) -> FullKeyboardOverlay(parent.parent) 참조
         if hasattr(self.parent, 'parent') and hasattr(self.parent.parent, 'key_bindings'):
             bound_paths = [os.path.abspath(p) for p in self.parent.parent.key_bindings.values() if p]
 
         for char_id, info in self.char_data.items():
-            if not char_id.isdigit(): continue
+            if info.get("type") != "char": continue # 용병 타입만 로드
 
-            formatted_id = char_id.zfill(3)
-            filename = f"char_icon_{formatted_id}.png"
+            filename = f"char_icon_{char_id.zfill(3)}.png"
             file_path = os.path.join(self.resource_path, filename)
-            abs_file_path = os.path.abspath(file_path)
+            abs_path = os.path.abspath(file_path)
 
             if os.path.exists(file_path):
-                try:
-                    pil_img = Image.open(file_path)
-                    
-                    # 이미 사용 중인 캐릭터라면 흑백 처리
-                    if abs_file_path in bound_paths:
-                        pil_img = pil_img.convert("L")
-                    
-                    ctk_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(80, 80))
-                    
-                    # [수정] 버튼을 슬롯과 유사한 디자인으로 구성 (#2b2b2b 배경)
-                    btn = ctk.CTkButton(self.scroll_frame, text="", image=ctk_img, 
-                                        width=110, height=110,
-                                        fg_color="#2b2b2b", 
-                                        hover_color="#3d3d3d",
-                                        border_color="#A0A0A0",
-                                        border_width=1,
-                                        corner_radius=8,
-                                        command=lambda p=file_path: self.confirm_selection(p))
-                    
-                    self.thumbnail_buttons[char_id] = btn
-                except: pass
-        
+                is_bound = abs_path in bound_paths
+                cache_key = (abs_path, is_bound)
+
+                # 캐시된 이미지가 있으면 사용
+                if cache_key in self._image_cache:
+                    ctk_img = self._image_cache[cache_key]
+                else:
+                    try:
+                        with Image.open(file_path) as pil_img:
+                            if is_bound: pil_img = pil_img.convert("L")
+                            # 메모리 절약을 위해 미리 80x80으로 리사이즈
+                            thumb = pil_img.resize((80, 80), Image.LANCZOS)
+                            ctk_img = ctk.CTkImage(light_image=thumb, dark_image=thumb, size=(80, 80))
+                            self._image_cache[cache_key] = ctk_img
+                    except: continue
+
+                btn = ctk.CTkButton(self.scroll_frame, text="", image=ctk_img, width=110, height=110,
+                                    fg_color="#2b2b2b", hover_color="#3d3d3d",
+                                    border_color="#A0A0A0", border_width=1, corner_radius=8,
+                                    command=lambda p=file_path: self.confirm_selection(p))
+                self.thumbnail_buttons[char_id] = btn
         self.update_gallery("")
 
     def on_search(self, event=None):
-        query = self.search_entry.get().strip().lower()
+        query = self.decompose_jamo(self.search_entry.get().strip().lower())
         self.update_gallery(query)
 
     def update_gallery(self, query):
-        """검색 결과 중앙 정렬 및 필터링"""
-        for btn in self.thumbnail_buttons.values():
-            btn.grid_forget()
-
+        """[수정] data.json의 keyword 리스트를 기반으로 검색 수행"""
+        for btn in self.thumbnail_buttons.values(): btn.grid_forget()
         filtered_ids = []
-        if not query:
-            filtered_ids = list(self.thumbnail_buttons.keys())
-        else:
-            for cid, info in self.char_data.items():
-                if cid not in self.thumbnail_buttons: continue
-                name = info.get("name", "").lower()
-                keywords = info.get("keyword", [])
-                if (query == cid or query in name or any(query in k.lower() for k in keywords)):
-                    filtered_ids.append(cid)
+        
+        for cid, info in self.char_data.items():
+            if cid not in self.thumbnail_buttons: continue
+            
+            name = info.get("name", "").lower()
+            # [수정] keyword 리스트의 모든 항목을 초성 분리하여 검색어와 비교
+            keywords = [self.decompose_jamo(k.lower()) for k in info.get("keyword", [])]
 
-        # 3열 중앙 배치를 위해 grid 사용
-        cols = 3
+            if not query or (query == cid or query in name or any(query in k for k in keywords)):
+                filtered_ids.append(cid)
+
         for i, cid in enumerate(filtered_ids):
-            self.thumbnail_buttons[cid].grid(row=i // cols, column=i % cols, padx=8, pady=8)
+            self.thumbnail_buttons[cid].grid(row=i // 3, column=i % 3, padx=8, pady=8)
+
+        for i, cid in enumerate(filtered_ids):
+            self.thumbnail_buttons[cid].grid(row=i // 3, column=i % 3, padx=8, pady=8)
+
+    def load_char_data(self):
+        """JSON 로드 (encoding 규칙 준수)"""
+        if os.path.exists(self.json_path):
+            try:
+                with open(self.json_path, "r", encoding="euc-kr") as f:
+                    return json.load(f)
+            except: pass
+        return {}
 
     def confirm_selection(self, path):
         self.callback(self.target_slot_key, path)
@@ -268,21 +313,21 @@ class ImageGalleryPopup(ctk.CTkToplevel):
         super().destroy()
 
 class InGameKeyConfigPopup(ctk.CTkToplevel):
-    """SOLDIER 1~50 설정 창 - 키 표시 이름 가독성 개선 및 UI 최적화 버전"""
+    """SOLDIER 1~50 설정 창 - 마우스 휠 스크롤 수정 및 최적화 버전"""
     def __init__(self, parent, soldier_data):
         super().__init__(parent)
         self.parent = parent
         self.soldier_data = soldier_data
         self.title("용병 설정 - 로스트사가")
         
-        # 전체 배경색: #E7E7E7 적용
+        # [디자인] 배경색 #E7E7E7 및 0.8배 축소된 너비(840px) 적용
         self.configure(fg_color="#E7E7E7") 
         self.geometry("840x850") 
         self.attributes("-topmost", True)
         
         self.slot_containers = {} 
 
-        # 상단 파란색 바 디자인 유지
+        # [디자인] 상단 파란색 바 (#2770CB) 및 여백
         self.header_bar = ctk.CTkFrame(self, height=50, fg_color="#2770CB", corner_radius=10)
         self.header_bar.pack(side="top", fill="x", padx=16, pady=(20, 10))
         
@@ -290,11 +335,10 @@ class InGameKeyConfigPopup(ctk.CTkToplevel):
                                          font=("Arial", 16, "bold"), text_color="white")
         self.header_label.place(relx=0.5, rely=0.5, anchor="center")
 
-        # 안내 문구 중앙 정렬
         ctk.CTkLabel(self, text="슬롯을 클릭하여 이미지를 지정하세요", 
                      font=("Arial", 12), text_color="black").pack(pady=(5, 5))
 
-        # 스크롤 영역 설정
+        # [디자인] 스크롤 영역 (중앙 정렬 설정)
         self.scroll_frame = ctk.CTkScrollableFrame(self, width=800, height=650, 
                                                    fg_color="transparent", 
                                                    scrollbar_button_color="#A0A0A0")
@@ -303,16 +347,20 @@ class InGameKeyConfigPopup(ctk.CTkToplevel):
         for c in range(6):
             self.scroll_frame.grid_columnconfigure(c, weight=1)
 
-        self.bind_all("<MouseWheel>", self._on_mousewheel)
+        # [수정] bind_all 대신 self.bind를 사용하여 팝업창 내 마우스 휠 활성화
+        self.bind("<MouseWheel>", self._on_mousewheel)
+        
         self.setup_slots()
 
     def _on_mousewheel(self, event):
+        """[수정] 스크롤 영역의 캔버스를 직접 제어하여 마우스 휠 적용"""
+        # 델타 값을 120으로 나누어 한 칸씩 부드럽게 스크롤되도록 조정합니다.
         speed_multiplier = 100
         scroll_units = int(-1 * (event.delta / 120) * speed_multiplier)
         self.scroll_frame._parent_canvas.yview_scroll(scroll_units, "units")
 
     def setup_slots(self):
-        """전체 슬롯 초기 생성 (6열 그리드)"""
+        """6열 그리드로 슬롯 생성"""
         cols = 6
         for i in range(1, 51):
             row = (i-1)//cols
@@ -320,51 +368,45 @@ class InGameKeyConfigPopup(ctk.CTkToplevel):
             self.create_single_slot(i, row, col)
 
     def create_single_slot(self, index, row, col):
-        """키 표시 이름 가독성 및 박스 크기 최적화"""
+        """[최적화] 이미지 리사이징 및 1:1 정비율 슬롯 생성"""
         s_id = f"SOLDIER{index}"
         raw_val = self.soldier_data.get(s_id, "0")
         key_id = get_lostsaga_key_name(raw_val)
         target_key = key_id.lower()
         
-        # 슬롯 외곽 프레임 (너비 128px 유지)
+        # [디자인] 슬롯 외곽 프레임 (축소된 128px 너비)
         slot_frame = ctk.CTkFrame(self.scroll_frame, width=128, height=140, 
                                   fg_color="#2b2b2b", border_color="#A0A0A0", 
                                   border_width=2, corner_radius=8)
         slot_frame.grid(row=row, column=col, padx=6, pady=6)
         slot_frame.grid_propagate(False)
 
-        # [수정] 키 표시 이름 변환 로직 (가독성 개선)
+        # [디자인] 키 표시 이름 및 가독성 높은 박스 (55x28)
         mapping = {
-            "numpad_add": "NUM+",
-            "numpad_div": "NUM /",
-            "numpad_mul": "NUM *",
-            "numpad_sub": "NUM -",
-            "numpad_dot": "NUM .",
-            "numpad_enter": "N_ENT",
-            "page_up": "PG_UP",
-            "page_down": "PG_DOWN",
-            "caps_lock": "CAPSLOCK"
+            "numpad_add": "NUM+", "numpad_div": "NUM /", "numpad_mul": "NUM *",
+            "numpad_sub": "NUM -", "numpad_dot": "NUM .", "numpad_enter": "N_ENT",
+            "page_up": "PG_UP", "page_down": "PG_DOWN", "caps_lock": "CAPSLOCK"
         }
-        
-        # 매핑된 이름이 있으면 사용하고, 없으면 기본적으로 numpad_ 접두사를 NUM으로 변경
         display_name = mapping.get(target_key, key_id.replace("numpad_", "NUM ").upper())
-
-        # [수정] 좌측 상단 키 박스: 이름 길이에 대응하기 위해 너비 소폭 확장 (50 -> 55)
+        
         key_box = ctk.CTkFrame(slot_frame, width=55, height=28, fg_color="#2770CB", corner_radius=4)
         key_box.place(x=6, y=6) 
-        
-        key_label = ctk.CTkLabel(key_box, text=display_name, font=("Arial", 11, "bold"), text_color="white")
-        key_label.place(relx=0.5, rely=0.5, anchor="center")
+        ctk.CTkLabel(key_box, text=display_name, font=("Arial", 11, "bold"), 
+                     text_color="white").place(relx=0.5, rely=0.5, anchor="center")
 
-        # 이미지 로드 및 버튼 생성
+        # [최적화] 비트맵 에러 방지를 위한 리사이징 및 1:1 비율 유지
         img_path = self.parent.key_bindings.get(target_key)
         display_img = None
         if img_path and os.path.exists(img_path):
             try:
-                pil_img = Image.open(img_path)
-                display_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(68, 68))
+                with Image.open(img_path) as raw_img:
+                    # 가로/세로 중 작은 쪽을 기준으로 중앙 1:1 비율 이미지 생성
+                    img_side = int(min(80, 80)) # 고정된 슬롯 내 버튼 크기에 맞춤
+                    resized = raw_img.resize((img_side, img_side), Image.LANCZOS)
+                    display_img = ctk.CTkImage(light_image=resized, dark_image=resized, size=(68, 68))
             except: pass
 
+        # 이미지 선택 버튼
         btn = ctk.CTkButton(slot_frame, 
                             text="+" if not display_img else "", 
                             image=display_img, 
@@ -378,17 +420,15 @@ class InGameKeyConfigPopup(ctk.CTkToplevel):
             btn.image_obj = display_img 
 
         self.slot_containers[target_key] = {
-            'frame': slot_frame,
-            'index': index,
-            'row': row,
-            'col': col
+            'frame': slot_frame, 'index': index, 'row': row, 'col': col
         }
 
     def open_gallery_for_slot(self, key_val):
+        """이미지 갤러리 팝업 열기"""
         ImageGalleryPopup(self, key_val, self.update_slot_image)
 
     def update_slot_image(self, key_val, image_path):
-        """특정 슬롯 갱신"""
+        """이미지 선택 후 해당 슬롯 UI 갱신"""
         target_key = key_val.lower()
         self.parent.bind_image_to_key(target_key, image_path)
         
@@ -399,7 +439,8 @@ class InGameKeyConfigPopup(ctk.CTkToplevel):
             self.update_idletasks()
 
     def destroy(self):
-        self.unbind_all("<MouseWheel>")
+        """팝업 종료 시 이벤트 해제"""
+        self.unbind("<MouseWheel>")
         super().destroy()
 
 class AccountSelectionPopup(ctk.CTkToplevel):
@@ -514,8 +555,9 @@ class SaveConfirmDialog(ctk.CTkToplevel):
         self.destroy()
 
 class FullKeyboardOverlay(ctk.CTk):
-    def __init__(self):
+    def __init__(self, config_path="./config.json"): # 인자 추가
         super().__init__()
+        self.config_file = config_path # 전달받은 경로를 기본 경로로 설정
         self.modes = {"full": {"w": 1090, "h": 276}, "tkl": {"w": 900, "h": 276}}
         self.current_mode = "full"
         self.min_width_limit = 720 
@@ -544,7 +586,12 @@ class FullKeyboardOverlay(ctk.CTk):
         self.attributes("-topmost", True)
         self.attributes("-alpha", self.current_alpha) 
         self.overrideredirect(True)                  
-        self.configure(fg_color="#1a1a1a")           
+        self.configure(fg_color="#1a1a1a")      
+
+        # 설정 로드 시 self.config_file 사용
+        config_data = self.load_config()
+        self.key_bindings = config_data.get("key_bindings", {})
+        self.saved_bindings = self.key_bindings.copy()     
         
         # 윈도우 종료 핸들러 등록
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -590,16 +637,20 @@ class FullKeyboardOverlay(ctk.CTk):
             except: pass
         return {"game_path": r"C:\program files\Lostsaga", "last_account": "", "key_bindings": {}}
     
-    # [기능 추가] 외부 설정 파일 불러오기
     def load_config_from_file(self):
-        """외부 설정 파일 불러오기"""
+        """[수정] 외부 설정 파일을 불러오고 현재 활성 설정 파일 경로를 업데이트함"""
         filename = filedialog.askopenfilename(title="설정 파일 불러오기", filetypes=[("JSON files", "*.json")])
         if filename:
             try:
                 with open(filename, "r", encoding="utf-8") as f:
                     new_data = json.load(f)
                     self.key_bindings = new_data.get("key_bindings", {})
+                    # [핵심] 불러온 파일을 현재 활성 설정 파일로 지정
+                    self.config_file = filename 
+                    self.saved_bindings = self.key_bindings.copy()
                     self.refresh_ui()
+                    # 메뉴 이름 갱신을 위해 메뉴 재생성
+                    self.create_context_menu() 
                     messagebox.showinfo("불러오기 완료", f"'{os.path.basename(filename)}' 파일을 불러왔습니다.")
             except:
                 messagebox.showerror("오류", "파일을 불러오는 중 오류가 발생했습니다.")
@@ -623,7 +674,7 @@ class FullKeyboardOverlay(ctk.CTk):
             print(f"계정 정보 자동 저장 실패: {e}")
 
     def save_config(self, filename=None):
-        """JSON 설정 저장 및 완료 알림"""
+        """[수정] 저장 성공 시 현재 활성 파일 경로를 업데이트함"""
         target = filename if filename else self.config_file
         data = {
             "key_bindings": self.key_bindings, 
@@ -634,9 +685,12 @@ class FullKeyboardOverlay(ctk.CTk):
             with open(target, "w", encoding="utf-8") as f: 
                 json.dump(data, f, ensure_ascii=False, indent=4)
             
-            # [추가] 저장 성공 시 상태 동기화 및 팝업 알림
             self.saved_bindings = self.key_bindings.copy()
+            # [추가] 저장이 완료된 파일을 현재 활성 설정 파일로 업데이트
+            self.config_file = target 
             messagebox.showinfo("저장 완료", f"'{os.path.basename(target)}' 파일에 저장을 완료했습니다.")
+            # 별표(*) 표시 제거를 위해 메뉴 갱신
+            self.create_context_menu() 
             return True
         except Exception as e:
             messagebox.showerror("저장 실패", f"파일 저장 중 오류가 발생했습니다: {e}")
@@ -657,21 +711,23 @@ class FullKeyboardOverlay(ctk.CTk):
             messagebox.showinfo("초기화 완료", "마지막 저장 상태로 복구되었습니다.")
 
     def create_context_menu(self):
-        """우클릭 메뉴 구성 (* 기호 및 초기화 메뉴 반영)"""
+        """[수정] 저장 메뉴에 현재 활성화된 설정 파일명을 표시함"""
         if self.context_menu: 
             self.context_menu.destroy()
             
         self.context_menu = tk.Menu(self, tearoff=0, bg="#2b2b2b", fg="white", activebackground="#1f538d", borderwidth=0)
         
-        # 변경 사항 여부 확인
         has_changes = (self.key_bindings != self.saved_bindings)
         save_prefix = "* " if has_changes else "  "
+        
+        # [추가] 현재 활성화된 파일의 이름 추출
+        current_config_name = os.path.basename(self.config_file)
 
+        # 레이아웃 설정 메뉴
         layout_menu = tk.Menu(self.context_menu, tearoff=0, bg="#2b2b2b", fg="white", activebackground="#1f538d")
         layout_menu.add_command(label=f"  {'• ' if self.current_mode == 'full' else '   '}풀 배열 (Full)  ", command=lambda: self.switch_layout("full"))
         layout_menu.add_command(label=f"  {'• ' if self.current_mode == 'tkl' else '   '}텐키리스 (TKL)  ", command=lambda: self.switch_layout("tkl"))
         self.context_menu.add_cascade(label="  키보드 레이아웃 설정", menu=layout_menu)
-        self.context_menu.add_separator()
 
         if self.edit_mode:
             self.context_menu.add_command(label="  직접 편집 완료하기  ", command=self.toggle_edit_mode)
@@ -680,23 +736,27 @@ class FullKeyboardOverlay(ctk.CTk):
             img_menu.add_command(label="  인게임 설정으로 편집하기  ", command=lambda: AccountSelectionPopup(self, self.game_path))
             img_menu.add_command(label="  직접 편집하기  ", command=self.toggle_edit_mode)
             self.context_menu.add_cascade(label="  이미지 바인딩 설정", menu=img_menu)
+            self.context_menu.add_command(label="  배경 투명도 설정 열기", command=self.open_slider_window)
             self.context_menu.add_separator()
             
-            self.context_menu.add_command(label=f"{save_prefix}현재 설정 저장", command=self.save_config)
+            # [수정] 동적으로 파일명을 출력하도록 레이블 변경
+            self.context_menu.add_command(label="  설정 파일 불러오기", command=self.load_config_from_file)
+            self.context_menu.add_command(label=f"{save_prefix}{current_config_name}에 저장하기", command=self.save_config)
             self.context_menu.add_command(label=f"{save_prefix}다른 이름으로 현재 설정 저장", command=self.save_config_as)
             
-            # [수정] 변경사항이 있을 때만 '변경사항 초기화하기' 메뉴 표시
             if has_changes:
                 self.context_menu.add_command(label=f"{save_prefix}변경사항 초기화", command=self.revert_changes)
-            self.context_menu.add_command(label="  설정 파일 불러오기", command=self.load_config_from_file)
             self.context_menu.add_separator()
 
             self.context_menu.add_command(label="  모든 설정 완전 초기화", command=self.reset_all_settings)
             self.context_menu.add_command(label="  창 크기 초기화", command=self.reset_to_original_size)
             self.context_menu.add_separator()
 
-            # [수정] 종료 시에도 체크 로직을 거치도록 on_closing 호출
             self.context_menu.add_command(label="  종료", command=self.on_closing)
+
+    def open_slider_window(self):
+        """투명도 설정 팝업 열기"""
+        TransparencySettings(self)
 
     def reset_all_settings(self):
         """모든 키 바인딩 설정을 삭제하고 초기화합니다."""
@@ -818,15 +878,21 @@ class FullKeyboardOverlay(ctk.CTk):
         target_id = key_code if key_code else text.lower()
         display_text = text
         img_obj = None
+
         if target_id in self.key_bindings:
             try:
-                raw_img = Image.open(self.key_bindings[target_id])
-                img_obj = ctk.CTkImage(light_image=raw_img, dark_image=raw_img, size=(k_w * 0.8, k_h * 0.8))
+                # [최적화] 리사이징을 통한 비트맵 에러 방지
+                with Image.open(self.key_bindings[target_id]) as raw_img:
+                    # [수정] 가로/세로 중 작은 값을 기준으로 1:1 비율 유지
+                    img_side = int(min(k_w, k_h) * 0.8)
+                    resized = raw_img.resize((img_side, img_side), Image.LANCZOS)
+                    img_obj = ctk.CTkImage(light_image=resized, dark_image=resized, size=(img_side, img_side))
                 display_text = ""
             except: pass
+        
         cmd = (lambda tid=target_id: ImageSelectionPopup(self, tid)) if self.edit_mode else None
-        btn = ctk.CTkButton(parent, text=display_text, image=img_obj, width=k_w, height=k_h, fg_color="#333333", 
-                            text_color="white", corner_radius=int(4*self.scale_factor), 
+        btn = ctk.CTkButton(parent, text=display_text, image=img_obj, width=k_w, height=k_h, 
+                            fg_color="#333333", text_color="white", corner_radius=int(4*self.scale_factor), 
                             font=("Arial", int(11*self.scale_factor), "bold"), hover=self.edit_mode, command=cmd)
         btn.grid(row=row, column=col, columnspan=columnspan, rowspan=rowspan, padx=1, pady=1, sticky="nsew")
         self.buttons[target_id] = btn
@@ -884,7 +950,7 @@ class FullKeyboardOverlay(ctk.CTk):
             if hasattr(key, 'char') and key.char: return key.char.lower()
             return str(key).replace('Key.', '').lower()
         except: return None
-    def open_slider_window(self): TransparencySlider(self)
+    def open_slider_window(self): TransparencySettings(self)
     def set_transparency(self, value): self.current_alpha = value; self.attributes("-alpha", value)
     def show_menu(self, event): self.create_context_menu(); self.context_menu.post(event.x_root, event.y_root)
 
@@ -919,4 +985,9 @@ def get_lostsaga_key_name(vk_code_str):
         return vk_code_str
 
 if __name__ == "__main__":
-    app = FullKeyboardOverlay(); app.mainloop()
+    # 실행 시 인자가 있으면 해당 경로를 사용, 없으면 기본 config.json 사용
+    # 예: python app.py custom_config.json
+    target_config = sys.argv[1] if len(sys.argv) > 1 else "./config.json"
+    
+    app = FullKeyboardOverlay(config_path=target_config)
+    app.mainloop()
