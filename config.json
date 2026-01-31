@@ -1,7 +1,8 @@
 {
     "key_bindings": {
         "1": "./resource/img/char_icon_001.png",
-        "3": "./resource/img/char_icon_004.png"
+        "3": "./resource/img/char_icon_004.png",
+        "f3": "./resource/img/char_icon_048.png"
     },
     "game_path": "C:\\Program Files\\LostSaga",
     "last_account": "도륙"
