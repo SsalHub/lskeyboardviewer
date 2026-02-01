@@ -1123,25 +1123,78 @@ class FullKeyboardOverlay(ctk.CTk):
             content_cols = 3 if self.current_mode == "full" else 2
             self.main_frame.grid_columnconfigure(0, weight=1); self.main_frame.grid_columnconfigure(content_cols + 1, weight=1)
             self.main_frame.grid_rowconfigure(0, weight=1); self.main_frame.grid_rowconfigure(3, weight=1)
+            
+            # 펑션 키 프레임 (f_frame) 너비 조정
             f_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
             f_frame.grid(row=1, column=1, columnspan=content_cols, sticky="w", pady=(0, 5))
-            for i, group in enumerate([["Esc"], [1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]):
-                tmp = ctk.CTkFrame(f_frame, fg_color="transparent")
-                tmp.pack(side="left", padx=0 if i == 0 else (int(54 * self.scale_factor), 0))
-                for idx, key in enumerate(group): self.create_key(tmp, f"F{key}" if isinstance(key, int) else key, 0, idx)
-            m_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent"); m_frame.grid(row=2, column=1, sticky="n")
-            for i, char in enumerate(["`","1","2","3","4","5","6","7","8","9","0","-","="]): self.create_key(m_frame, char, 0, i)
-            self.create_key(m_frame, "Back", 0, 13, width=s*2, columnspan=2, key_code="backspace")
-            self.create_key(m_frame, "Tab", 1, 0, width=s*1.5, columnspan=2, key_code="tab")
-            for i, char in enumerate(["q","w","e","r","t","y","u","i","o","p","[","]","\\"]): self.create_key(m_frame, char.upper(), 1, i+2, key_code=char)
-            self.create_key(m_frame, "Caps", 2, 0, width=s*1.8, columnspan=2, key_code="caps_lock")
-            for i, char in enumerate(["a","s","d","f","g","h","j","k","l",";","'"]): self.create_key(m_frame, char.upper(), 2, i+2, key_code=char)
-            self.create_key(m_frame, "Enter", 2, 13, width=s*1.8, columnspan=2, key_code="enter")
-            self.create_key(m_frame, "Shift", 3, 0, width=s*2.3, columnspan=2, key_code="shift")
-            for i, char in enumerate(["z","x","c","v","b","n","m",",",".","/"]): self.create_key(m_frame, char.upper(), 3, i+2, key_code=char)
-            self.create_key(m_frame, "Shift ", 3, 12, width=s*2.3, columnspan=3, key_code="shift_r")
-            self.create_key(m_frame, "Ctrl", 4, 0, width=s*1.3, key_code="ctrl_l"); self.create_key(m_frame, "Win", 4, 1, width=s*1.3, key_code="cmd"); self.create_key(m_frame, "Alt", 4, 2, width=s*1.3, key_code="alt_l")
-            self.create_key(m_frame, "SPACE", 4, 3, width=s*6.5, columnspan=9, key_code="space"); self.create_key(m_frame, "Alt", 4, 12, width=s*1.3, key_code="alt_gr"); self.create_key(m_frame, "Ctx", 4, 13, width=s*1.3, key_code="menu"); self.create_key(m_frame, "Ctrl", 4, 14, width=s*1.3, key_code="ctrl_r")
+
+            # 1. Esc (4칸)
+            self.create_key(f_frame, "Esc", 0, 0, width=s, columnspan=4)
+
+            # 2. 여백 1: Esc와 F1 사이 (4칸)
+            # [수정] 너비를 s * 1.0에서 1.2 정도로 미세하게 늘림
+            ctk.CTkLabel(f_frame, text="", width=s * 1.2).grid(row=0, column=4, columnspan=4)
+
+            # 3. F1 ~ F4 (16칸)
+            for i in range(1, 5):
+                self.create_key(f_frame, f"F{i}", 0, 4 + (i * 4), width=s, columnspan=4)
+
+            # 4. 여백 2: F4와 F5 사이 (2칸)
+            # [수정] 너비를 s * 0.5에서 0.65 정도로 미세하게 늘림
+            ctk.CTkLabel(f_frame, text="", width=s * 0.65).grid(row=0, column=24, columnspan=2)
+
+            # 5. F5 ~ F8 (16칸)
+            for i in range(5, 9):
+                self.create_key(f_frame, f"F{i}", 0, 26 + ((i-5) * 4), width=s, columnspan=4)
+
+            # 6. 여백 3: F8과 F9 사이 (2칸)
+            # [수정] 너비를 s * 0.5에서 0.65 정도로 미세하게 늘림
+            ctk.CTkLabel(f_frame, text="", width=s * 0.65).grid(row=0, column=42, columnspan=2)
+
+            # 7. F9 ~ F12 (16칸)
+            for i in range(9, 13):
+                self.create_key(f_frame, f"F{i}", 0, 44 + ((i-9) * 4), width=s, columnspan=4)
+            
+            # 메인 키 프레임 구성
+            m_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+            m_frame.grid(row=2, column=1, sticky="n")
+
+            # --- Row 0: 숫자열 (1키=4칸 기준, 총 60칸) ---
+            for i, char in enumerate(["`","1","2","3","4","5","6","7","8","9","0","-","="]):
+                self.create_key(m_frame, char, 0, i * 4, columnspan=4)
+            self.create_key(m_frame, "Back", 0, 52, width=s*2, columnspan=8, key_code="backspace")
+
+            # --- Row 1: QWERTY열 (Tab=1.5u=6칸) ---
+            self.create_key(m_frame, "Tab", 1, 0, width=s*1.5, columnspan=6, key_code="tab")
+            for i, char in enumerate(["q","w","e","r","t","y","u","i","o","p","[","]"]):
+                self.create_key(m_frame, char.upper(), 1, 6 + (i * 4), columnspan=4, key_code=char)
+            self.create_key(m_frame, "\\", 1, 6 + (12 * 4), width=s*1.5, columnspan=6, key_code=char)
+
+            # --- Row 2: Caps Lock열 (Caps=1.75u=7칸 / Enter=2.25u=9칸) ---
+            # [수정] Caps Lock을 1.75u로 설정하여 7칸 차지
+            self.create_key(m_frame, "Caps", 2, 0, width=s*1.75, columnspan=7, key_code="caps_lock")
+            for i, char in enumerate(["a","s","d","f","g","h","j","k","l",";","'"]):
+                self.create_key(m_frame, char.upper(), 2, 7 + (i * 4), columnspan=4, key_code=char)
+            self.create_key(m_frame, "Enter", 2, 51, width=s*2.25, columnspan=9, key_code="enter")
+
+            # --- Row 3: Shift열 (L-Shift=2.25u=9칸 / R-Shift=2.25u=9칸) ---
+            # [수정] Left Shift를 2.25u로 설정 (Caps Lock보다 0.5u 김)
+            self.create_key(m_frame, "Shift", 3, 0, width=s*2.25, columnspan=9, key_code="shift")
+            for i, char in enumerate(["z","x","c","v","b","n","m",",",".","/"]):
+                self.create_key(m_frame, char.upper(), 3, 9 + (i * 4), columnspan=4, key_code=char)
+            # [수정] Right Shift도 동일하게 2.25u로 설정
+            self.create_key(m_frame, "Shift ", 3, 49, width=s*2.25, columnspan=11, key_code="shift_r")
+
+            # --- Row 4: 하단 조작열 (1.25u~1.5u 기준 배치) ---
+            self.create_key(m_frame, "Ctrl", 4, 0, width=s*1.25, columnspan=5, key_code="ctrl_l")
+            self.create_key(m_frame, "Win", 4, 5, width=s*1.25, columnspan=5, key_code="cmd")
+            self.create_key(m_frame, "Alt", 4, 10, width=s*1.25, columnspan=5, key_code="alt_l")
+            self.create_key(m_frame, "SPACE", 4, 15, width=s*6.25, columnspan=30, key_code="space")
+            self.create_key(m_frame, "Alt", 4, 45, width=s*1.25, columnspan=5, key_code="alt_gr")
+            self.create_key(m_frame, "Ctx", 4, 50, width=s*1.25, columnspan=5, key_code="menu")
+            self.create_key(m_frame, "Ctrl", 4, 55, width=s*1.25, columnspan=5, key_code="ctrl_r")
+
+            # Numpad
             n_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent"); n_frame.grid(row=2, column=2, sticky="n", padx=int(10 * self.scale_factor))
             for r, row in enumerate([["insert", "home", "page_up"], ["delete", "end", "page_down"]]):
                 for c, k in enumerate(row): self.create_key(n_frame, k[:3].upper(), r, c, key_code=k)
