@@ -1,5 +1,13 @@
 {
+    "key_bindings": {
+        "a": "./resource/img/basic_icon_jump.png",
+        "s": "./resource/img/basic_icon_guard.png",
+        "d": "./resource/img/basic_icon_attack.png",
+        "q": "./resource/img/basic_icon_trinket.png",
+        "w": "./resource/img/basic_icon_helmet.png",
+        "e": "./resource/img/basic_icon_armor.png",
+        "r": "./resource/img/basic_icon_weapon.png"
+    },
     "game_path": "C:\\Program Files\\LostSaga",
-    "last_account": "",
-    "key_bindings": {}
+    "last_account": "도륙"
 }
