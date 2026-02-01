@@ -1017,28 +1017,43 @@ class FullKeyboardOverlay(ctk.CTk):
     def on_button_release(self, event):
         if self.resizing:
             self.resizing = False
-            base_w = self.modes[self.current_mode]['w']
-            self.scale_factor = self.winfo_width() / base_w * self.scale_factor_w
+            
+            # [수정] 오른쪽 끝 정렬을 위한 정밀 스케일 계산
+            # 60칸 그리드 = 15개의 기본 키 너비 (15 * s)
+            # 버튼 사이의 총 여백(padx=1 좌우) = 15개 키 * 2px = 30px
+            # 프레임 자체의 여백(padx=5 좌우) = 10px
+            total_padding = 30 + 10 + 10 # (누적 오차 방지를 위해 약간 넉넉히 설정)
+            
+            available_w = self.winfo_width() - total_padding
+            # 현재 창 너비에 딱 맞는 새로운 scale_factor 역산
+            self.scale_factor = available_w / (15 * self.base_key_size)
+            
             self.refresh_ui()
 
     def handle_mouse_action(self, event):
         if self.resizing:
             orig_x, orig_y, orig_w, orig_h = self.start_geom
             dx, dy = event.x_root - self.start_x_root, event.y_root - self.start_y_root
-            if "e" in self.resize_edge: raw_w = orig_w + dx
-            elif "w" in self.resize_edge: raw_w = orig_w - dx
+            
+            # [수정] 어느 방향으로 당기든 비율을 강제하기 위한 로직
+            if abs(dx) / self.aspect_ratio > abs(dy):
+                # 가로 변화가 더 크면 가로를 기준으로 세로 결정
+                new_w = max(self.min_width_limit, orig_w + (dx if "e" in self.resize_edge else -dx))
+                new_h = new_w / self.aspect_ratio
             else:
-                raw_h = orig_h + dy if "s" in self.resize_edge else orig_h - dy
-                raw_w = raw_h * self.aspect_ratio
-            new_w = max(self.min_width_limit, raw_w)
-            new_h = new_w / self.aspect_ratio
+                # 세로 변화가 더 크면 세로를 기준으로 가로 결정
+                new_h = max(self.min_width_limit / self.aspect_ratio, orig_h + (dy if "s" in self.resize_edge else -dy))
+                new_w = new_h * self.aspect_ratio
+
             new_x, new_y = orig_x, orig_y
             if "w" in self.resize_edge: new_x = orig_x + (orig_w - new_w)
             if "n" in self.resize_edge: new_y = orig_y + (orig_h - new_h)
+            
             self.geometry(f"{int(new_w)}x{int(new_h)}+{int(new_x)}+{int(new_y)}")
         else:
+            # 창 이동 로직 (기존 유지)
             self.geometry(f"+{self.winfo_x() + (event.x - self.start_drag_x)}+{self.winfo_y() + (event.y - self.start_drag_y)}")
-
+            
     def create_key(self, parent, text, row, col, width=None, height=None, columnspan=1, rowspan=1, key_code=None):
         """[수정] Minimal 모드 시 방향키는 텍스트를, 나머지는 고정 이미지를 출력함"""
         k_w = (width if width else self.base_key_size) * self.scale_factor
@@ -1156,8 +1171,9 @@ class FullKeyboardOverlay(ctk.CTk):
                 self.create_key(f_frame, f"F{i}", 0, 44 + ((i-9) * 4), width=s, columnspan=4)
             
             # 메인 키 프레임 구성
+            # m_frame 배치 시 sticky="n" 대신 중앙 정렬 유도
             m_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-            m_frame.grid(row=2, column=1, sticky="n")
+            m_frame.grid(row=2, column=1, sticky="n") # column 0, 2의 weight=1이 중앙으로 밀어줌
 
             # --- Row 0: 숫자열 (1키=4칸 기준, 총 60칸) ---
             for i, char in enumerate(["`","1","2","3","4","5","6","7","8","9","0","-","="]):
