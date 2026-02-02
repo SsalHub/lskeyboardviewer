@@ -752,10 +752,10 @@ class FullKeyboardOverlay(ctk.CTk):
             "minimal_full": {"w": 420, "h": 185} # 3x3 배치를 위해 세로 크기 조정
         }
         self.current_mode = "full"
-        self.min_width_limit = 720 
+        self.min_width_limit = 800 
         self.current_alpha = 0.85
         self.pre_edit_alpha = 0.85 
-        self.scale_factor_w = 0.92
+        self.scale_factor_w = 0.95
         self.scale_factor = 1.0 * self.scale_factor_w
         self.resizing = False
         self.resize_edge = None
@@ -1015,45 +1015,52 @@ class FullKeyboardOverlay(ctk.CTk):
             self.start_drag_y = event.y
 
     def on_button_release(self, event):
+        """[수정] 리사이징 종료 시 창 크기에 맞춰 키보드 스케일을 정밀 재계산합니다."""
         if self.resizing:
             self.resizing = False
+            # 윈도우 지오메트리 업데이트를 확정하기 위해 호출
+            self.update_idletasks()
             
-            # [수정] 오른쪽 끝 정렬을 위한 정밀 스케일 계산
-            # 60칸 그리드 = 15개의 기본 키 너비 (15 * s)
-            # 버튼 사이의 총 여백(padx=1 좌우) = 15개 키 * 2px = 30px
-            # 프레임 자체의 여백(padx=5 좌우) = 10px
-            total_padding = 30 + 10 + 10 # (누적 오차 방지를 위해 약간 넉넉히 설정)
+            # 현재 모드의 초기 기준 너비
+            base_w = self.modes[self.current_mode]['w']
             
-            available_w = self.winfo_width() - total_padding
-            # 현재 창 너비에 딱 맞는 새로운 scale_factor 역산
-            self.scale_factor = available_w / (15 * self.base_key_size)
+            # [핵심] 윈도우 너비에서 내부 여백(10px)을 제외한 가용 너비를 기준으로 스케일 산출
+            # scale_factor_w(0.92)를 곱해 키보드 전체가 창 끝에 닿지 않고 여유 있게 들어가도록 함 (잘림 방지)
+            current_window_w = self.winfo_width()
+            self.scale_factor = ((current_window_w - 10) / base_w) * self.scale_factor_w
             
+            # 레이아웃을 새로 그려 바뀐 스케일 적용
             self.refresh_ui()
 
     def handle_mouse_action(self, event):
+        """[수정] 드래그 방향에 따라 정해진 비율(aspect_ratio)을 강제 적용합니다."""
         if self.resizing:
             orig_x, orig_y, orig_w, orig_h = self.start_geom
-            dx, dy = event.x_root - self.start_x_root, event.y_root - self.start_y_root
+            # 마우스 이동 거리 계산
+            dx = event.x_root - self.start_x_root
+            dy = event.y_root - self.start_y_root
             
-            # [수정] 어느 방향으로 당기든 비율을 강제하기 위한 로직
-            if abs(dx) / self.aspect_ratio > abs(dy):
-                # 가로 변화가 더 크면 가로를 기준으로 세로 결정
-                new_w = max(self.min_width_limit, orig_w + (dx if "e" in self.resize_edge else -dx))
+            # 주도적으로 변화하는 축을 결정하여 비율을 강제함
+            if "e" in self.resize_edge or "w" in self.resize_edge:
+                # 가로 변화를 기준으로 세로를 자동 계산
+                change_w = dx if "e" in self.resize_edge else -dx
+                new_w = max(self.min_width_limit, orig_w + change_w)
                 new_h = new_w / self.aspect_ratio
             else:
-                # 세로 변화가 더 크면 세로를 기준으로 가로 결정
-                new_h = max(self.min_width_limit / self.aspect_ratio, orig_h + (dy if "s" in self.resize_edge else -dy))
+                # 세로 변화를 기준으로 가로를 자동 계산 (N, S 엣지)
+                change_h = dy if "s" in self.resize_edge else -dy
+                new_h = max(self.min_width_limit / self.aspect_ratio, orig_h + change_h)
                 new_w = new_h * self.aspect_ratio
-
-            new_x, new_y = orig_x, orig_y
-            if "w" in self.resize_edge: new_x = orig_x + (orig_w - new_w)
-            if "n" in self.resize_edge: new_y = orig_y + (orig_h - new_h)
+            
+            # W나 N 엣지 드래그 시 창의 위치 좌표도 비례해서 이동
+            new_x = orig_x + (orig_w - new_w) if "w" in self.resize_edge else orig_x
+            new_y = orig_y + (orig_h - new_h) if "n" in self.resize_edge else orig_y
             
             self.geometry(f"{int(new_w)}x{int(new_h)}+{int(new_x)}+{int(new_y)}")
         else:
-            # 창 이동 로직 (기존 유지)
+            # 창 이동 로직
             self.geometry(f"+{self.winfo_x() + (event.x - self.start_drag_x)}+{self.winfo_y() + (event.y - self.start_drag_y)}")
-            
+
     def create_key(self, parent, text, row, col, width=None, height=None, columnspan=1, rowspan=1, key_code=None):
         """[수정] Minimal 모드 시 방향키는 텍스트를, 나머지는 고정 이미지를 출력함"""
         k_w = (width if width else self.base_key_size) * self.scale_factor
