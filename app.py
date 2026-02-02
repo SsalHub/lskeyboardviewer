@@ -18,6 +18,14 @@ BASIC_ICON_MAP = {
     "CLOAK_SKILL": "basic_icon_trinket.png"
 }
 
+def resource_path(relative_path):
+    """ 실행 파일 내부의 임시 폴더 경로를 참조하도록 수정합니다. """
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 class KeyCapturePopup(ctk.CTkToplevel):
     """키 입력을 대기하고 감지된 키의 VK 코드를 반환하는 팝업"""
     def __init__(self, parent, ini_key, display_name, callback):
@@ -146,7 +154,7 @@ class ImageSelectionPopup(ctk.CTkToplevel):
         self.transient(parent)
         self.grab_set() 
         
-        self.resource_path = "./resource/img/"
+        self.resource_path = resource_path("./resource/img/")
         self.thumbnail_buttons = {} # 검색 필터링을 위한 버튼 저장소
         
         # 상단 파란색 바 (#2770CB)
@@ -282,7 +290,7 @@ class ImageGalleryPopup(ctk.CTkToplevel):
         self.transient(parent)
         self.grab_set()
 
-        self.resource_path = "./resource/img/"
+        self.resource_path = resource_path("./resource/img/")
         self.json_path = "./resource/data.json"
         self.char_data = self.load_char_data()
         self.thumbnail_buttons = {} 
@@ -807,7 +815,7 @@ class FullKeyboardOverlay(ctk.CTk):
     def preload_resources(self):
         """[핵심] 디스크 부하를 줄이기 위해 모든 이미지와 데이터를 메모리에 적재"""
         # data.json 로드
-        json_path = "./resource/data.json"
+        json_path = resource_path("./resource/data.json")
         if os.path.exists(json_path):
             try:
                 with open(json_path, "r", encoding="euc-kr") as f:
@@ -815,7 +823,7 @@ class FullKeyboardOverlay(ctk.CTk):
             except: pass
 
         # 이미지 폴더 캐싱
-        img_dir = "./resource/img/"
+        img_dir = resource_path("./resource/img/")
         if os.path.exists(img_dir):
             for file in os.listdir(img_dir):
                 if file.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
