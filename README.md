@@ -1,1 +1,1 @@
-# ·Î½ºÆ®»ç°¡ Å°º¸µå ºä¾î (LostSaga KeyViewer)
+# ë¡œìŠ¤íŠ¸ì‚¬ê°€ í‚¤ë·°ì–´ (LostSaga Keyboard Viewer)
