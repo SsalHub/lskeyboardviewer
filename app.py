@@ -2,7 +2,7 @@ import customtkinter as ctk
 import tkinter as tk
 from tkinter import messagebox, filedialog
 from pynput import keyboard
-from PIL import Image
+from PIL import Image, ImageTk, ImageGrab
 import os
 import json
 import configparser
@@ -790,8 +790,12 @@ class FullKeyboardOverlay(ctk.CTk):
         self.bind("<ButtonPress-1>", self.on_button_press)
         self.bind("<ButtonRelease-1>", self.on_button_release)
         self.bind("<B1-Motion>", self.handle_mouse_action)
-        self.main_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.main_frame.pack(expand=True, fill="both", padx=5, pady=5)
+        self.bind("<FocusIn>", self.on_focus_in)
+        self.bind("<FocusOut>", self.on_focus_out)
+        # [수정] 테두리 색상 오류 해결 및 리사이징 클릭 영역 확보를 위한 여백 추가
+        self.main_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=1, border_color='#1a1a1a')
+        # padx, pady를 2~3 정도로 주면 테두리가 예쁘게 보이면서 리사이징 그립이 쉬워집니다.
+        self.main_frame.pack(expand=True, fill="both", padx=2, pady=2)
         self.buttons = {}
         self.setup_layout()
         self.aspect_ratio = self.winfo_width() / self.winfo_height()
@@ -847,7 +851,7 @@ class FullKeyboardOverlay(ctk.CTk):
                     self.config_file = filename 
                     self.saved_bindings = self.key_bindings.copy()
                     self.refresh_ui(); self.create_context_menu() 
-                    messagebox.showinfo("불러오기 완료", f"'{os.path.basename(filename)}' 파일을 불러왔습니다.")
+                    # messagebox.showinfo("불러오기 완료", f"'{os.path.basename(filename)}' 파일을 불러왔습니다.")
             except: messagebox.showerror("오류", "파일을 불러오는 중 오류가 발생했습니다.")
 
     def update_last_account(self, account_name):
@@ -903,13 +907,19 @@ class FullKeyboardOverlay(ctk.CTk):
             self.context_menu.add_cascade(label="  키보드 용병 아이콘 설정", menu=img_menu)
             self.context_menu.add_command(label="  배경 투명도 설정 열기", command=self.open_slider_window)
             self.context_menu.add_separator()
-            self.context_menu.add_command(label="  설정 파일 불러오기", command=self.load_config_from_file)
+            self.context_menu.add_command(label="  다른 설정 파일 불러오기", command=self.load_config_from_file)
             self.context_menu.add_command(label=f"{save_prefix}{fname}에 저장하기", command=self.save_config)
             self.context_menu.add_command(label=f"{save_prefix}다른 이름으로 저장", command=self.save_config_as)
             if has_changes: self.context_menu.add_command(label="  변경사항 초기화하기", command=self.revert_changes)
             self.context_menu.add_separator()
             self.context_menu.add_command(label="  모든 설정 완전 초기화", command=self.reset_all_settings)
             self.context_menu.add_command(label="  창 크기 초기화", command=self.reset_to_original_size)
+            self.context_menu.add_command(label="  현재 상태 캡쳐하기", command=self.capture_current_state)
+            # btn_capture = ctk.CTkButton(menu_frame, text="현재 상태 캡쳐하기", fg_color="transparent", 
+            #                         text_color="white", anchor="w", hover_color="#3a3a3a",
+            #                         command=self.capture_current_state) # 여기를 수정
+            # btn_capture.pack(fill="x", pady=2)
+
             self.context_menu.add_separator()
             self.context_menu.add_command(label="  종료", command=self.on_closing)
 
@@ -987,12 +997,13 @@ class FullKeyboardOverlay(ctk.CTk):
 
     def check_edge(self, event):
         if self.resizing: return
+        # [수정] 자식 위젯(버튼 등) 위에 있어도 테두리 영역이라면 리사이징을 허용하도록 타겟 체크 완화
         target = self.winfo_containing(event.x_root, event.y_root)
         if target != self and target != self.main_frame and target is not None:
             self.resize_edge = None; self.config(cursor=""); return
         x, y = event.x, event.y
         w, h = self.winfo_width(), self.winfo_height()
-        m = 15 
+        m = 10
         at_top, at_bottom = y < m, y > h - m
         at_left, at_right = x < m, x > w - m
         if at_top and at_left: self.resize_edge = "nw"; self.config(cursor="size_nw_se")
@@ -1004,6 +1015,16 @@ class FullKeyboardOverlay(ctk.CTk):
         elif at_left: self.resize_edge = "w"; self.config(cursor="size_we")
         elif at_right: self.resize_edge = "e"; self.config(cursor="size_we")
         else: self.resize_edge = None; self.config(cursor="")
+
+    def on_focus_in(self, event):
+        """프로그램이 포커스를 얻었을 때 흰색 테두리 표시"""
+        self.main_frame.configure(border_color="white")
+
+    def on_focus_out(self, event):
+        """포커스를 잃었을 때 테두리를 배경색과 맞춰 숨깁니다."""
+        # 현재 윈도우의 배경색을 가져와서 테두리 색상으로 적용 (오류 방지)
+        current_bg = self.cget("fg_color")
+        self.main_frame.configure(border_color=current_bg)
 
     def on_button_press(self, event):
         if self.resize_edge:
@@ -1228,6 +1249,53 @@ class FullKeyboardOverlay(ctk.CTk):
                 for r, row in enumerate([[("NL","num_lock"),("/","numpad_div"),("*","numpad_mul"),("-","numpad_sub")],[("7","numpad_7"),("8","numpad_8"),("9","numpad_9")],[("4","numpad_4"),("5","numpad_5"),("6","numpad_6")],[("1","numpad_1"),("2","numpad_2"),("3","numpad_3")]]):
                     for c, (txt, kid) in enumerate(row): self.create_key(t_frame, txt, r, c, key_code=kid)
                 self.create_key(t_frame, "0", 4, 0, width=s*2, columnspan=2, key_code="numpad_0"); self.create_key(t_frame, ".", 4, 2, key_code="numpad_dot"); self.create_key(t_frame, "+", 1, 3, height=s*2, rowspan=2, key_code="numpad_add"); self.create_key(t_frame, "Ent", 3, 3, height=s*2, rowspan=2, key_code="numpad_enter")
+
+    def capture_current_state(self):
+        """[수정] 캡쳐 순간에만 투명도를 100%로 고정하여 선명한 이미지를 저장합니다."""
+        try:
+            # 1. 기본 파일명 생성 (현재 설정 파일명 기준)
+            base_name = os.path.splitext(os.path.basename(self.config_file))[0]
+            default_filename = f"{base_name}.png"
+
+            # 2. 저장 경로 선택 (경로가 결정되기 전까지는 투명도 유지)
+            file_path = filedialog.asksaveasfilename(
+                initialfile=default_filename,
+                defaultextension=".png",
+                filetypes=[("PNG files", "*.png"), ("JPEG files", "*.jpg"), ("All files", "*.*")],
+                title="키보드 레이아웃 캡쳐 저장"
+            )
+
+            if file_path:
+                # [추가] 현재 설정된 투명도 임시 저장
+                original_alpha = self.current_alpha
+                
+                # [추가] 캡쳐를 위해 불투명 상태(100%)로 변경
+                self.set_transparency(1.0)
+                # 윈도우 속성 변경을 즉시 적용하기 위해 강제 업데이트
+                self.update() 
+                
+                # 3. 윈도우 영역 계산 및 캡쳐 실행
+                self.update_idletasks()
+                x = self.winfo_rootx()
+                y = self.winfo_rooty()
+                w = self.winfo_width()
+                h = self.winfo_height()
+                bbox = (x, y, x + w, y + h)
+
+                # 실제 화면 캡쳐
+                captured_image = ImageGrab.grab(bbox=bbox)
+                captured_image.save(file_path)
+                
+                # [추가] 원래 설정했던 투명도로 자동 복구
+                self.set_transparency(original_alpha)
+                
+                messagebox.showinfo("캡쳐 성공", f"캡쳐 성공 : {default_filename} 파일이 저장되었습니다.")
+                
+        except Exception as e:
+            # 오류 발생 시에도 원래 투명도로 복구 시도
+            if 'original_alpha' in locals():
+                self.set_transparency(original_alpha)
+            messagebox.showerror("캡쳐 실패", f"저장 중 오류가 발생했습니다: {e}")
 
     def win32_filter(self, msg, data): self.last_is_extended = bool(data.flags & 0x01); return True
     def on_press(self, key):
