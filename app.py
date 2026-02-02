@@ -460,9 +460,9 @@ class InGameKeyConfigPopup(ctk.CTkToplevel):
         for c in range(6): self.scroll_frame.grid_columnconfigure(c, weight=1)
 
         self.bind("<MouseWheel>", self._on_mousewheel)
+        self.sync_all_bindings()
         self.setup_soldier_slots()
 
-        self.sync_all_bindings()
 
     def _on_mousewheel(self, event):
         speed_multiplier = 100
