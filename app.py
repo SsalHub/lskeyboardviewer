@@ -637,7 +637,7 @@ class InGameKeyConfigPopup(ctk.CTkToplevel):
         super().destroy()
 
 class AccountSelectionPopup(ctk.CTkToplevel):
-    """디자인이 통일된 계정 선택 팝업"""
+    """디자인이 통일된 계정 선택 팝업 - 설치 경로 찾기 버튼 추가 버전"""
     def __init__(self, parent, game_path):
         super().__init__(parent)
         self.parent = parent
@@ -648,22 +648,22 @@ class AccountSelectionPopup(ctk.CTkToplevel):
         self.transient(parent)
         self.grab_set()
 
+        # 1. 헤더 바 생성
         self.header_bar = ctk.CTkFrame(self, height=50, fg_color="#2770CB", corner_radius=10)
         self.header_bar.pack(side="top", fill="x", padx=15, pady=(15, 5))
-        ctk.CTkLabel(self.header_bar, text="계정 선택 (Account Selection)", font=("Arial", 16, "bold"), text_color="white").place(relx=0.5, rely=0.5, anchor="center")
+        ctk.CTkLabel(self.header_bar, text="계정 선택 (Account Selection)", 
+                     font=("Arial", 16, "bold"), text_color="white").place(relx=0.5, rely=0.5, anchor="center")
 
-        if self.parent.last_account: self.after(100, self.check_recent_account, game_path)
-
-        save_path = os.path.join(game_path, "Save")
+        # 2. 스크롤 프레임 생성
         self.scroll_frame = ctk.CTkScrollableFrame(self, width=360, height=400, fg_color="transparent")
         self.scroll_frame.pack(pady=10, padx=15, fill="both", expand=True)
 
-        if os.path.exists(save_path):
-            accounts = [d for d in os.listdir(save_path) if os.path.isdir(os.path.join(save_path, d)) and d.lower() != "default"]
-            for acc in accounts:
-                ctk.CTkButton(self.scroll_frame, text=acc, height=40, fg_color="#2b2b2b", command=lambda a=acc: self.on_account_select(a, game_path)).pack(pady=5, padx=10, fill="x")
-        else: ctk.CTkLabel(self.scroll_frame, text="Save 폴더를 찾을 수 없습니다.", text_color="red").pack(pady=20)
-
+        # 3. 최근 계정 확인 및 초기 목록 로드
+        if self.parent.last_account: 
+            self.after(100, self.check_recent_account, self.parent.game_path)
+        
+        self.load_accounts(self.parent.game_path)
+        
     def check_recent_account(self, game_path):
         if messagebox.askyesno("최근 계정 확인", f"최근 계정 '{self.parent.last_account}'을(를) 사용하시겠습니까?"):
             self.on_account_select(self.parent.last_account, game_path)
@@ -716,6 +716,43 @@ class AccountSelectionPopup(ctk.CTkToplevel):
             InGameKeyConfigPopup(self.parent, all_key_data)
         else: 
             messagebox.showerror("섹션 오류", "[Key] 섹션을 찾을 수 없습니다.")
+
+    def browse_and_refresh(self):
+        """[신규] 파일 탐색기를 열어 경로를 수정하고 목록을 새로고침합니다."""
+        path = filedialog.askdirectory(title="로스트사가 설치 폴더 선택", initialdir=self.parent.game_path)
+        if path:
+            new_path = os.path.normpath(path)
+            self.parent.game_path = new_path
+            self.parent.save_config() # config.json 업데이트
+            self.load_accounts(new_path) # 새 경로로 목록 다시 부르기
+
+    def load_accounts(self, game_path):
+        """[수정] 경로 내 Save 폴더 유무에 따라 목록 또는 경로 찾기 버튼을 표시합니다."""
+        # 기존 목록 초기화
+        for widget in self.scroll_frame.winfo_children():
+            widget.destroy()
+
+        save_path = os.path.join(game_path, "Saves")
+        
+        if os.path.exists(save_path):
+            # Save 폴더가 있을 때: 계정 목록 출력
+            accounts = [d for d in os.listdir(save_path) 
+                        if os.path.isdir(os.path.join(save_path, d)) and d.lower() != "default"]
+            
+            if not accounts:
+                ctk.CTkLabel(self.scroll_frame, text="계정 데이터를 찾을 수 없습니다.", text_color="#555555").pack(pady=20)
+            
+            for acc in accounts:
+                ctk.CTkButton(self.scroll_frame, text=acc, height=40, fg_color="#2b2b2b", 
+                              command=lambda a=acc: self.on_account_select(a, game_path)).pack(pady=5, padx=10, fill="x")
+        else:
+            # [핵심 추가] Save 폴더가 없을 때: 설치 경로 찾기 버튼 배치
+            ctk.CTkLabel(self.scroll_frame, text="로스트사가 설치 경로가 지정되지 않았습니다.\n로스트사가 설치 경로를 다시 지정해주세요.\n(Save 폴더가 보여야만 합니다.)", 
+                         text_color="#A12F2F", font=("Arial", 13)).pack(pady=(20, 10))
+            
+            ctk.CTkButton(self.scroll_frame, text="로스트사가 설치 경로 찾기", 
+                          fg_color="#2770CB", hover_color="#1f538d",
+                          command=self.browse_and_refresh).pack(pady=10, padx=20)
 
     def destroy(self):
         self.grab_release()
