@@ -1,4 +1,4 @@
-# ⌨️ 로스트사가 키뷰어 (LostSaga Keyboard Viewer)(v1.0)
+# ⌨️ 로스트사가 키뷰어 (LostSaga Keyboard Viewer)
 
 <img width="1090" height="276" alt="Image" src="https://github.com/user-attachments/assets/22980fcc-66c0-4761-820f-4c33c8b70c15" />
 
