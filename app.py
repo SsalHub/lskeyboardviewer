@@ -732,7 +732,7 @@ class AccountSelectionPopup(ctk.CTkToplevel):
         for widget in self.scroll_frame.winfo_children():
             widget.destroy()
 
-        save_path = os.path.join(game_path, "Saves")
+        save_path = os.path.join(game_path, "Save")
         
         if os.path.exists(save_path):
             # Save 폴더가 있을 때: 계정 목록 출력
