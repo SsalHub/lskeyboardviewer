@@ -261,8 +261,26 @@ class ImageSelectionPopup(ctk.CTkToplevel):
             self.thumbnail_buttons[fname].grid(row=i // cols, column=i % cols, padx=10, pady=10)
 
     def select_image(self, path):
-        self.parent.bind_image_to_key(self.key_id, path)
-        self.destroy()
+        """[수정] 이미지 선택 시 중복 여부를 확인하고 기존 바인딩을 해제한 뒤 재할당합니다."""
+        existing_key = None
+        # 현재 선택한 이미지가 다른 키에 이미 바인딩되어 있는지 확인
+        for k, v in self.parent.key_bindings.items():
+            if v == path and k != self.key_id:
+                existing_key = k
+                break
+
+        if existing_key:
+            # 중복된 경우 확인 팝업 출력
+            if messagebox.askyesno("중복 확인", f"이미 [{existing_key.upper()}] 키에 설정된 이미지입니다.\n새로 바꾸시겠습니까?"):
+                # 기존 키의 바인딩을 해제 (None으로 설정)
+                self.parent.bind_image_to_key(existing_key, None)
+                # 현재 키에 새 이미지 바인딩
+                self.parent.bind_image_to_key(self.key_id, path)
+                self.destroy()
+        else:
+            # 중복이 없는 경우 일반적인 바인딩 진행
+            self.parent.bind_image_to_key(self.key_id, path)
+            self.destroy()
 
     def remove_binding(self):
         self.parent.bind_image_to_key(self.key_id, None)
@@ -408,8 +426,26 @@ class ImageGalleryPopup(ctk.CTkToplevel):
         return {}
 
     def confirm_selection(self, path):
-        self.callback(self.target_slot_key, path)
-        self.destroy()
+        """[수정] 용병 슬롯 선택 시 중복 확인 및 기존 바인딩 해제 로직을 수행합니다."""
+        existing_key = None
+        # 메인 오버레이의 바인딩 데이터에서 중복 검색
+        for k, v in self.parent.parent.key_bindings.items():
+            if v == path and k != self.target_slot_key:
+                existing_key = k
+                break
+
+        if existing_key:
+            # 중복 확인 메시지 박스
+            if messagebox.askyesno("중복 확인", f"이미 [{existing_key.upper()}] 키에 설정된 이미지입니다.\n새로 바꾸시겠습니까?"):
+                # 기존에 바인딩되어 있던 키의 이미지를 제거
+                self.parent.parent.bind_image_to_key(existing_key, None)
+                # 콜백(update_slot_image)을 통해 새 슬롯에 이미지 할당
+                self.callback(self.target_slot_key, path)
+                self.destroy()
+        else:
+            # 중복이 없는 경우 바로 할당
+            self.callback(self.target_slot_key, path)
+            self.destroy()
 
     def remove_binding(self):
         self.unbind_all("<MouseWheel>")
@@ -798,8 +834,9 @@ class FullKeyboardOverlay(ctk.CTk):
         }
         self.current_mode = "full"
         self.min_width_limit = 800 
-        self.current_alpha = 0.85
-        self.pre_edit_alpha = 0.85 
+        # self.current_alpha = 0.85
+        self.current_alpha = 1.00
+        self.pre_edit_alpha = 1.00 
         self.scale_factor_w = 0.95
         self.scale_factor = 1.0 * self.scale_factor_w
         self.resizing = False
