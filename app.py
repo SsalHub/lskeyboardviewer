@@ -221,9 +221,23 @@ class ImageSelectionPopup(ctk.CTkToplevel):
             
         self.update_gallery("") # 초기 상태(전체 출력)
 
+    def convert_to_jamo(self, text):
+        """[신규] 영문 입력을 한글 자판 위치에 맞는 자음/모음으로 변환합니다."""
+        mapping = {
+            'q': 'ㅂ', 'w': 'ㅈ', 'e': 'ㄷ', 'r': 'ㄱ', 't': 'ㅅ', 'y': 'ㅛ', 'u': 'ㅕ', 'i': 'ㅑ', 'o': 'ㅐ', 'p': 'ㅔ',
+            'a': 'ㅁ', 's': 'ㄴ', 'd': 'ㅇ', 'f': 'ㄹ', 'g': 'ㅎ', 'h': 'ㅗ', 'j': 'ㅓ', 'k': 'ㅏ', 'l': 'ㅣ',
+            'z': 'ㅋ', 'x': 'ㅌ', 'c': 'ㅊ', 'v': 'ㅍ', 'b': 'ㅠ', 'n': 'ㅜ', 'm': 'ㅡ',
+            'Q': 'ㅃ', 'W': 'ㅉ', 'E': 'ㄸ', 'R': 'ㄲ', 'T': 'ㅆ', 'O': 'ㅒ', 'P': 'ㅖ'
+        }
+        # 영문이면 변환하고, 이미 한글이면 그대로 유지
+        converted = "".join(mapping.get(char, char) for char in text)
+        return self.decompose_jamo(converted) # 기존 초성 분리 로직과 결합
+
     def on_search(self, event=None):
-        """검색어 입력 시 호출"""
-        query = self.decompose_jamo(self.search_entry.get().strip().lower())
+        """[수정] 입력된 텍스트를 한글 자판으로 해석하여 검색을 수행합니다."""
+        raw_query = self.search_entry.get().strip()
+        # 영타를 한글로 변환 후 초성 검색 수행
+        query = self.convert_to_jamo(raw_query).lower()
         self.update_gallery(query)
 
     def update_gallery(self, query):
@@ -391,8 +405,23 @@ class ImageGalleryPopup(ctk.CTkToplevel):
                 self.thumbnail_buttons[char_id] = btn
         self.update_gallery("")
 
+    def convert_to_jamo(self, text):
+        """[신규] 영문 입력을 한글 자판 위치에 맞는 자음/모음으로 변환합니다."""
+        mapping = {
+            'q': 'ㅂ', 'w': 'ㅈ', 'e': 'ㄷ', 'r': 'ㄱ', 't': 'ㅅ', 'y': 'ㅛ', 'u': 'ㅕ', 'i': 'ㅑ', 'o': 'ㅐ', 'p': 'ㅔ',
+            'a': 'ㅁ', 's': 'ㄴ', 'd': 'ㅇ', 'f': 'ㄹ', 'g': 'ㅎ', 'h': 'ㅗ', 'j': 'ㅓ', 'k': 'ㅏ', 'l': 'ㅣ',
+            'z': 'ㅋ', 'x': 'ㅌ', 'c': 'ㅊ', 'v': 'ㅍ', 'b': 'ㅠ', 'n': 'ㅜ', 'm': 'ㅡ',
+            'Q': 'ㅃ', 'W': 'ㅉ', 'E': 'ㄸ', 'R': 'ㄲ', 'T': 'ㅆ', 'O': 'ㅒ', 'P': 'ㅖ'
+        }
+        # 영문이면 변환하고, 이미 한글이면 그대로 유지
+        converted = "".join(mapping.get(char, char) for char in text)
+        return self.decompose_jamo(converted) # 기존 초성 분리 로직과 결합
+
     def on_search(self, event=None):
-        query = self.decompose_jamo(self.search_entry.get().strip().lower())
+        """[수정] 입력된 텍스트를 한글 자판으로 해석하여 검색을 수행합니다."""
+        raw_query = self.search_entry.get().strip()
+        # 영타를 한글로 변환 후 초성 검색 수행
+        query = self.convert_to_jamo(raw_query).lower()
         self.update_gallery(query)
 
     def update_gallery(self, query):
@@ -426,24 +455,23 @@ class ImageGalleryPopup(ctk.CTkToplevel):
         return {}
 
     def confirm_selection(self, path):
-        """[수정] 용병 슬롯 선택 시 중복 확인 및 기존 바인딩 해제 로직을 수행합니다."""
+        """[수정] 중복된 이미지 이동 시 기존 슬롯의 UI도 함께 비웁니다."""
         existing_key = None
-        # 메인 오버레이의 바인딩 데이터에서 중복 검색
         for k, v in self.parent.parent.key_bindings.items():
             if v == path and k != self.target_slot_key:
                 existing_key = k
                 break
 
         if existing_key:
-            # 중복 확인 메시지 박스
-            if messagebox.askyesno("중복 확인", f"이미 [{existing_key.upper()}] 키에 설정된 이미지입니다.\n새로 바꾸시겠습니까?"):
-                # 기존에 바인딩되어 있던 키의 이미지를 제거
+            if messagebox.askyesno("중복 확인", f"이미 '{existing_key.upper()}'에 설정된 이미지입니다.\n새로 바꾸시겠습니까?"):
+                # 1. 메인 데이터에서 기존 바인딩 해제
                 self.parent.parent.bind_image_to_key(existing_key, None)
-                # 콜백(update_slot_image)을 통해 새 슬롯에 이미지 할당
+                # 2. InGameKeyConfigPopup의 해당 슬롯 UI 비우기
+                self.parent.refresh_specific_slot(existing_key)
+                # 3. 새 슬롯 할당
                 self.callback(self.target_slot_key, path)
                 self.destroy()
         else:
-            # 중복이 없는 경우 바로 할당
             self.callback(self.target_slot_key, path)
             self.destroy()
 
@@ -655,10 +683,23 @@ class InGameKeyConfigPopup(ctk.CTkToplevel):
         from app import ImageGalleryPopup 
         ImageGalleryPopup(self, key_val, self.update_slot_image)
 
+    def refresh_specific_slot(self, key_id):
+        """[신규] 특정 키(예: 'a')와 연동된 모든 슬롯의 UI를 새로고침합니다."""
+        target_key = key_id.lower()
+        for ini_key, info in self.slot_containers.items():
+            raw_val = self.all_key_data.get(ini_key, "0")
+            # 현재 슬롯의 할당 키가 대상 키와 일치하면 UI 재구성
+            if get_lostsaga_key_name(raw_val).lower() == target_key:
+                info['frame'].destroy()
+                self.create_slot_logic(info['parent'], ini_key, info['label'], 
+                                       info['row'], info['col'], info['icon_id'])
+        self.update_idletasks()
+
     def update_slot_image(self, key_val, image_path):
         """이미지 선택 후 해당 슬롯만 개별적으로 다시 그립니다."""
         target_key = key_val.lower()
-        self.parent.bind_image_to_key(target_key, image_path)
+        self.parent.bind_image_to_key(target_key, image_path) # 메인 데이터 변경
+        self.refresh_specific_slot(target_key) # 관련 UI 갱신
         
         for ini_key, info in self.slot_containers.items():
             raw_val = self.all_key_data.get(ini_key, "0")
