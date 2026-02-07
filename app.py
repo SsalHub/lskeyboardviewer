@@ -272,6 +272,7 @@ class ImageSelectionPopup(ctk.CTkToplevel):
         cols = 3
         for i, fname in enumerate(filtered_files):
             self.thumbnail_buttons[fname].grid(row=i // cols, column=i % cols, padx=10, pady=10)
+        self.scroll_frame._parent_canvas.yview_moveto(0)
 
     def select_image(self, path):
         """[수정] 이미지 선택 시 중복 여부를 확인하고 기존 바인딩을 해제한 뒤 재할당합니다."""
@@ -439,9 +440,7 @@ class ImageGalleryPopup(ctk.CTkToplevel):
 
         for i, cid in enumerate(filtered_ids):
             self.thumbnail_buttons[cid].grid(row=i // 3, column=i % 3, padx=8, pady=8)
-
-        for i, cid in enumerate(filtered_ids):
-            self.thumbnail_buttons[cid].grid(row=i // 3, column=i % 3, padx=8, pady=8)
+        self.scroll_frame._parent_canvas.yview_moveto(0)
 
     def load_char_data(self):
         """JSON 로드 (encoding 규칙 준수)"""
