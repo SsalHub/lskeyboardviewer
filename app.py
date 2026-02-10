@@ -7,6 +7,7 @@ import os
 import json
 import configparser
 import sys
+import ctypes  # Win32 API 호출을 위해 추가
 
 BASIC_ICON_MAP = {
     "ATTACK": "basic_icon_attack.png",
@@ -17,6 +18,15 @@ BASIC_ICON_MAP = {
     "HELM_SKILL": "basic_icon_helmet.png",
     "CLOAK_SKILL": "basic_icon_trinket.png"
 }
+# Win32 관련 상수 (클래스 상단 또는 메서드 내부 정의)
+GWL_STYLE = -16
+WS_POPUP = 0x80000000      # 팝업 스타일 (타이틀 바 없음)
+WS_THICKFRAME = 0x00040000 # 리사이징 테두리 활성화
+WS_CAPTION = 0x00C00000    # 타이틀 바 + 테두리
+SWP_FRAMECHANGED = 0x0020
+SWP_NOMOVE = 0x0002
+SWP_NOSIZE = 0x0001
+SWP_NOZORDER = 0x0004
 
 def resource_path(relative_path):
     """ 실행 파일 내부의 임시 폴더 경로를 참조하도록 수정합니다. """
@@ -882,6 +892,25 @@ class FullKeyboardOverlay(ctk.CTk):
         self.resize_edge = None
         self.base_key_size = 42
         self.edit_mode = False
+        # [수정] OS 측정을 믿지 말고, 우리가 정의한 모드 수치로 비율 고정
+        mode = self.modes[self.current_mode]
+        self.aspect_ratio = mode['w'] / mode['h']
+        self.title("LostSaga KeyboardViewer")
+
+        # [수정] overrideredirect를 False로 설정하여 정식 윈도우로 등록
+        self.overrideredirect(False)
+        # 초기화 시 타이틀 바 숨김 적용
+        self.after(10, lambda: self._update_window_style(False))
+        # Win32 API를 사용하여 타이틀 바(Caption)만 강제로 제거
+        # 이를 통해 작업 표시줄 아이콘은 유지하면서 테두리 없는 창을 만듭니다.
+        GWL_STYLE = -16
+        WS_CAPTION = 0x00C00000
+        # 윈도우 핸들(HWND) 가져오기
+        hwnd = ctypes.windll.user32.GetParent(self.winfo_id())
+        # 현재 스타일 가져오기
+        style = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_STYLE)
+        # 타이틀 바 스타일 비트 제거
+        ctypes.windll.user32.SetWindowLongW(hwnd, GWL_STYLE, style & ~WS_CAPTION)
         
         config_data = self.load_config()
         self.key_bindings = config_data.get("key_bindings", {
@@ -900,7 +929,7 @@ class FullKeyboardOverlay(ctk.CTk):
         self.geometry(f"{self.modes[self.current_mode]['w']}x{self.modes[self.current_mode]['h']}")
         self.attributes("-topmost", True)
         self.attributes("-alpha", self.current_alpha) 
-        self.overrideredirect(True)                  
+        # self.overrideredirect(True)                  
         self.configure(fg_color="#1a1a1a")      
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         
@@ -911,15 +940,16 @@ class FullKeyboardOverlay(ctk.CTk):
         self.bind("<ButtonPress-1>", self.on_button_press)
         self.bind("<ButtonRelease-1>", self.on_button_release)
         self.bind("<B1-Motion>", self.handle_mouse_action)
-        self.bind("<FocusIn>", self.on_focus_in)
-        self.bind("<FocusOut>", self.on_focus_out)
-        # [수정] 테두리 색상 오류 해결 및 리사이징 클릭 영역 확보를 위한 여백 추가
+        self.bind("<FocusIn>", lambda e: None)
+        self.bind("<FocusOut>", lambda e: None)
+        # [수정] 모든 방향의 여백을 4로 통일하여 균형을 맞춥니다.
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=1, border_color='#1a1a1a')
-        # padx, pady를 2~3 정도로 주면 테두리가 예쁘게 보이면서 리사이징 그립이 쉬워집니다.
-        self.main_frame.pack(expand=True, fill="both", padx=2, pady=2)
+        self.main_frame.pack(expand=True, fill="both", padx=4, pady=4)
         self.buttons = {}
         self.setup_layout()
-        self.aspect_ratio = self.winfo_width() / self.winfo_height()
+        # [핵심] 윈도우 배치를 완료한 뒤 정확한 비율을 계산합니다.
+        self.update_idletasks()
+        # self.aspect_ratio = self.winfo_width() / self.winfo_height()
         
         self.listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release, win32_event_filter=self.win32_filter)
         self.listener.daemon = True 
@@ -1071,15 +1101,18 @@ class FullKeyboardOverlay(ctk.CTk):
 
     def toggle_edit_mode(self):
         if self.edit_mode:
+            # [편집 모드 종료 -> 일반 모드로]
             self.withdraw()
-            self.overrideredirect(True)
+            self._update_window_style(False) # 타이틀 바 제거
             self.set_transparency(self.pre_edit_alpha)
             self.configure(fg_color="#1a1a1a")
+            self.title("LostSaga KeyboardViewer")
             self.deiconify()
         else:
+            # [일반 모드 종료 -> 편집 모드로]
             self.withdraw()
             self.pre_edit_alpha = self.current_alpha
-            self.overrideredirect(False)
+            self._update_window_style(True)  # 타이틀 바 복구
             self.title("직접 편집 모드 - 키를 클릭하여 수정하세요")
             self.set_transparency(1.0)
             self.configure(fg_color="#2a1a1a")
@@ -1117,16 +1150,19 @@ class FullKeyboardOverlay(ctk.CTk):
         self.refresh_ui()
 
     def check_edge(self, event):
+        """[수정] 대각선 방향을 포함하여 리사이징 영역을 정밀하게 감지합니다."""
         if self.resizing: return
-        # [수정] 자식 위젯(버튼 등) 위에 있어도 테두리 영역이라면 리사이징을 허용하도록 타겟 체크 완화
-        target = self.winfo_containing(event.x_root, event.y_root)
-        if target != self and target != self.main_frame and target is not None:
-            self.resize_edge = None; self.config(cursor=""); return
-        x, y = event.x, event.y
+        
+        # 마우스의 윈도우 상대 좌표 계산 (정밀도 향상)
+        x = self.winfo_pointerx() - self.winfo_rootx()
+        y = self.winfo_pointery() - self.winfo_rooty()
         w, h = self.winfo_width(), self.winfo_height()
-        m = 10
-        at_top, at_bottom = y < m, y > h - m
-        at_left, at_right = x < m, x > w - m
+        
+        margin = 20 # 감지 영역 확대
+        at_top, at_bottom = y < margin, y > h - margin
+        at_left, at_right = x < margin, x > w - margin
+        
+        # 대각선 감지 우선 순위 부여
         if at_top and at_left: self.resize_edge = "nw"; self.config(cursor="size_nw_se")
         elif at_top and at_right: self.resize_edge = "ne"; self.config(cursor="size_ne_sw")
         elif at_bottom and at_left: self.resize_edge = "sw"; self.config(cursor="size_ne_sw")
@@ -1135,17 +1171,28 @@ class FullKeyboardOverlay(ctk.CTk):
         elif at_bottom: self.resize_edge = "s"; self.config(cursor="size_ns")
         elif at_left: self.resize_edge = "w"; self.config(cursor="size_we")
         elif at_right: self.resize_edge = "e"; self.config(cursor="size_we")
-        else: self.resize_edge = None; self.config(cursor="")
+        else:
+            self.resize_edge = None
+            self.config(cursor="")
+
+    def _update_window_style(self, show_caption=False):
+        """[수정] 시스템 테두리를 제거하여 보라색 여백을 없애고 깔끔한 오버레이를 만듭니다."""
+        hwnd = ctypes.windll.user32.GetParent(self.winfo_id())
+        # WS_POPUP (0x80000000)을 사용하여 캡션과 테두리를 모두 제거
+        if show_caption:
+            new_style = ctypes.windll.user32.GetWindowLongW(hwnd, -16) | 0x00C00000 | 0x00040000
+        else:
+            new_style = 0x80000000 
+            
+        ctypes.windll.user32.SetWindowLongW(hwnd, -16, new_style)
+        ctypes.windll.user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0020 | 0x0002 | 0x0001 | 0x0004)
 
     def on_focus_in(self, event):
-        """프로그램이 포커스를 얻었을 때 흰색 테두리 표시"""
-        self.main_frame.configure(border_color="white")
+        """[수정] 포커스 시 테두리 두께가 변하지 않도록 색상만 변경합니다."""
+        self.main_frame.configure(border_color="white") # 혹은 선호하는 색상 (#2770CB 등)
 
     def on_focus_out(self, event):
-        """포커스를 잃었을 때 테두리를 배경색과 맞춰 숨깁니다."""
-        # 현재 윈도우의 배경색을 가져와서 테두리 색상으로 적용 (오류 방지)
-        current_bg = self.cget("fg_color")
-        self.main_frame.configure(border_color=current_bg)
+        self.main_frame.configure(border_color="#1a1a1a")
 
     def on_button_press(self, event):
         if self.resize_edge:
@@ -1153,55 +1200,58 @@ class FullKeyboardOverlay(ctk.CTk):
             self.start_x_root, self.start_y_root = event.x_root, event.y_root
             self.start_geom = (self.winfo_x(), self.winfo_y(), self.winfo_width(), self.winfo_height())
         else:
-            self.start_drag_x = event.x
-            self.start_drag_y = event.y
+            # [수정] 창 이동을 위한 시작 좌표를 화면 절대 좌표로 저장
+            self.start_drag_x_root = event.x_root
+            self.start_drag_y_root = event.y_root
+            self.start_win_x = self.winfo_x()
+            self.start_win_y = self.winfo_y()
 
     def on_button_release(self, event):
-        """[수정] 리사이징 종료 시 창 크기에 맞춰 키보드 스케일을 정밀 재계산합니다."""
         if self.resizing:
             self.resizing = False
-            # 윈도우 지오메트리 업데이트를 확정하기 위해 호출
-            self.update_idletasks()
-            
-            # 현재 모드의 초기 기준 너비
-            base_w = self.modes[self.current_mode]['w']
-            
-            # [핵심] 윈도우 너비에서 내부 여백(10px)을 제외한 가용 너비를 기준으로 스케일 산출
-            # scale_factor_w(0.92)를 곱해 키보드 전체가 창 끝에 닿지 않고 여유 있게 들어가도록 함 (잘림 방지)
+            # 리사이징이 끝난 시점의 최종 창 너비를 기준으로 스케일 재계산
             current_window_w = self.winfo_width()
+            base_w = self.modes[self.current_mode]['w']
             self.scale_factor = ((current_window_w - 10) / base_w) * self.scale_factor_w
             
-            # 레이아웃을 새로 그려 바뀐 스케일 적용
-            self.refresh_ui()
+            self.refresh_ui() # 이때 한 번만 다시 그려 성능 최적화
 
     def handle_mouse_action(self, event):
-        """[수정] 드래그 방향에 따라 정해진 비율(aspect_ratio)을 강제 적용합니다."""
+        """[수정] 실시간 창 이동 및 정확한 방향의 리사이징을 구현합니다."""
         if self.resizing:
             orig_x, orig_y, orig_w, orig_h = self.start_geom
-            # 마우스 이동 거리 계산
+            # 화면 전체 좌표 기준 변화량 계산
             dx = event.x_root - self.start_x_root
             dy = event.y_root - self.start_y_root
             
-            # 주도적으로 변화하는 축을 결정하여 비율을 강제함
-            if "e" in self.resize_edge or "w" in self.resize_edge:
-                # 가로 변화를 기준으로 세로를 자동 계산
-                change_w = dx if "e" in self.resize_edge else -dx
-                new_w = max(self.min_width_limit, orig_w + change_w)
-                new_h = new_w / self.aspect_ratio
-            else:
-                # 세로 변화를 기준으로 가로를 자동 계산 (N, S 엣지)
+            # [해결 1] 리사이징 주도 축 결정 및 방향 반전 수정
+            # 상/하(N, S)만 드래그하는 경우 세로를 기준으로 비율 계산
+            if any(x in self.resize_edge for x in ["n", "s"]) and not any(x in self.resize_edge for x in ["e", "w"]):
+                # S(아래)를 잡고 아래로(dy > 0) 내리면 커져야 하므로 '+' 적용
                 change_h = dy if "s" in self.resize_edge else -dy
                 new_h = max(self.min_width_limit / self.aspect_ratio, orig_h + change_h)
                 new_w = new_h * self.aspect_ratio
+            # 좌우 또는 대각선 드래그 시 가로를 기준으로 비율 계산
+            else:
+                change_w = dx if "e" in self.resize_edge else -dx
+                new_w = max(self.min_width_limit, orig_w + change_w)
+                new_h = new_w / self.aspect_ratio
             
-            # W나 N 엣지 드래그 시 창의 위치 좌표도 비례해서 이동
+            # 좌측/상단 드래그 시 좌표 보정
             new_x = orig_x + (orig_w - new_w) if "w" in self.resize_edge else orig_x
             new_y = orig_y + (orig_h - new_h) if "n" in self.resize_edge else orig_y
             
+            # 즉시 윈도우 크기 반영 (실시간 리사이징)
             self.geometry(f"{int(new_w)}x{int(new_h)}+{int(new_x)}+{int(new_y)}")
+            
         else:
-            # 창 이동 로직
-            self.geometry(f"+{self.winfo_x() + (event.x - self.start_drag_x)}+{self.winfo_y() + (event.y - self.start_drag_y)}")
+            # [해결 2] 드래그 시 실시간 창 이동 (순간이동 방지)
+            # 버튼이나 레이아웃 어디를 잡아도 마우스 이동에 따라 즉시 창이 따라옵니다.
+            dx = event.x_root - self.start_drag_x_root
+            dy = event.y_root - self.start_drag_y_root
+            
+            # geometry를 Motion 이벤트 안에서 호출하여 실시간성 확보
+            self.geometry(f"+{self.start_win_x + dx}+{self.start_win_y + dy}")
 
     def create_key(self, parent, text, row, col, width=None, height=None, columnspan=1, rowspan=1, key_code=None):
         """[수정] Minimal 모드 시 방향키는 텍스트를, 나머지는 고정 이미지를 출력함"""
