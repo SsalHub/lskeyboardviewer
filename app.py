@@ -875,31 +875,26 @@ class FullKeyboardOverlay(ctk.CTk):
         # 1. 프로그램 실행 시 리소스 미리 불러오기
         self.preload_resources()
         
-        # self.modes = {
-        #     "full": {"w": 995, "h": 276, "min_w": 990}, 
-        #     "tkl": {"w": 820, "h": 276, "min_w": 820},
-        #     "minimal_tkl": {"w": 350, "h": 100, "min_w": 350},
-        #     "minimal_full": {"w": 350, "h": 135, "min_w": 350} # 3x3 배치를 위해 세로 크기 조정
-        # }
         self.modes = {
-            "full": {"w": 1010, "h": 280, "min_w": 1010}, 
-            "tkl": {"w": 840, "h": 280, "min_w": 840},
-            "minimal_tkl": {"w": 360, "h": 140, "min_w": 360},
-            "minimal_full": {"w": 360, "h": 180, "min_w": 360}
+            "full": {"w": 1040, "h": 320}, 
+            "tkl": {"w": 840, "h": 320},
+            "minimal_tkl": {"w": 350, "h": 120},
+            "minimal_full": {"w": 350, "h": 155} # 3x3 배치를 위해 세로 크기 조정
         }
         self.current_mode = "full"
         # self.min_width_limit = 600
         # self.current_alpha = 0.85
         self.current_alpha = 1.00
         self.pre_edit_alpha = 1.00 
-        # self.scale_factor_w = 0.95
-        self.scale_factor_w = 1.0
-        self.scale_factor = 1.0 * self.scale_factor_w
-        self.resizing = False
-        self.resize_edge = None
+        self.scale_factor = 1.0
+        self.start_drag_x_root = 0
+        self.start_drag_y_root = 0
+        # self.resizing = False
+        # self.resize_edge = None
         self.base_key_size = 42
         self.edit_mode = False
         self.always_on_top = True
+        self.resizable(False, False)
         # [수정] OS 측정을 믿지 말고, 우리가 정의한 모드 수치로 비율 고정
         mode = self.modes[self.current_mode]
         self.aspect_ratio = mode['w'] / mode['h']
@@ -942,18 +937,26 @@ class FullKeyboardOverlay(ctk.CTk):
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         
         self.context_menu = None
-        self.create_context_menu()
         self.bind("<Button-3>", self.show_menu)
-        self.bind("<Motion>", self.check_edge)
+        # self.bind("<Motion>", self.check_edge)
         self.bind("<ButtonPress-1>", self.on_button_press)
         self.bind("<ButtonRelease-1>", self.on_button_release)
         self.bind("<B1-Motion>", self.handle_mouse_action)
         self.bind("<FocusIn>", lambda e: None)
         self.bind("<FocusOut>", lambda e: None)
-        # [수정] 모든 방향의 여백을 4로 통일하여 균형을 맞춥니다.
-        self.main_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=0, border_color='#1a1a1a')
-        self.main_frame.pack(expand=True, fill="both", padx=0, pady=0)
+        
+        self.use_transparent_bg = False
+        self.transparent_color = "#121212" # 투명으로 처리할 고유 색상
+        # 초기 배경 설정 적용
+        if self.use_transparent_bg:
+            self.configure(fg_color=self.transparent_color)
+            self.attributes("-transparentcolor", self.transparent_color)
+        else:
+            self.configure(fg_color="#1a1a1a")
+        self.main_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=0)
+        self.main_frame.pack(expand=True, fill="both")
         self.buttons = {}
+        self.create_context_menu()
         self.setup_layout()
         # [핵심] 윈도우 배치를 완료한 뒤 정확한 비율을 계산합니다.
         self.update_idletasks()
@@ -1050,6 +1053,17 @@ class FullKeyboardOverlay(ctk.CTk):
         self.attributes("-topmost", self.always_on_top)
         self.create_context_menu() # 메뉴 텍스트 갱신
 
+    def toggle_background_transparency(self):
+        """배경 투명화 모드를 토글합니다."""
+        self.use_transparent_bg = not self.use_transparent_bg
+        if self.use_transparent_bg:
+            self.configure(fg_color=self.transparent_color)
+            self.attributes("-transparentcolor", self.transparent_color)
+        else:
+            self.attributes("-transparentcolor", "") # 투명 속성 제거
+            self.configure(fg_color="#1a1a1a") # 원래 배경색 복구
+        self.create_context_menu() # 메뉴 체크 표시 갱신
+
     def minimize_window(self):
         """프로그램을 최소화합니다."""
         self.iconify()
@@ -1070,31 +1084,28 @@ class FullKeyboardOverlay(ctk.CTk):
 
         if self.edit_mode: self.context_menu.add_command(label="  직접 편집 완료하기", command=self.toggle_edit_mode)
         else:
+            self.context_menu.add_separator()
             img_menu = tk.Menu(self, tearoff=0, bg="#2b2b2b", fg="white", activebackground="#1f538d")
             img_menu.add_command(label="  인게임 설정으로 편집하기", command=lambda: AccountSelectionPopup(self, self.game_path))
             img_menu.add_command(label="  직접 편집하기", command=self.toggle_edit_mode)
-            self.context_menu.add_cascade(label="  키보드 용병 아이콘 설정", menu=img_menu)
-            self.context_menu.add_command(label="  배경 투명도 설정 열기", command=self.open_slider_window)
+            self.context_menu.add_cascade(label="  용병 아이콘 설정", menu=img_menu)
+            self.context_menu.add_command(label="  키보드 투명도 설정 열기", command=self.open_slider_window)
+            # self.context_menu.add_command(label="  모든 설정 완전 초기화", command=self.reset_all_settings)
+            bg_trans_prefix = "• " if self.use_transparent_bg else "  "
+            self.context_menu.add_command(label=f"{bg_trans_prefix}배경을 투명하게 표시", 
+                                        command=self.toggle_background_transparency)
+            topmost_prefix = "• " if self.always_on_top else "  "
+            self.context_menu.add_command(label=f"{topmost_prefix}항상 위에 표시", command=self.toggle_always_on_top)
             self.context_menu.add_separator()
-            self.context_menu.add_command(label="  다른 설정 파일 불러오기", command=self.load_config_from_file)
-            self.context_menu.add_command(label=f"{save_prefix}{fname}에 저장하기", command=self.save_config)
-            self.context_menu.add_command(label=f"{save_prefix}다른 이름으로 저장", command=self.save_config_as)
-            if has_changes: self.context_menu.add_command(label="  변경사항 초기화하기", command=self.revert_changes)
-            self.context_menu.add_separator()
-            self.context_menu.add_command(label="  모든 설정 완전 초기화", command=self.reset_all_settings)
-            self.context_menu.add_command(label="  창 크기 초기화", command=self.reset_to_original_size)
             self.context_menu.add_command(label="  현재 상태 캡쳐하기", command=self.capture_current_state)
-            # btn_capture = ctk.CTkButton(menu_frame, text="현재 상태 캡쳐하기", fg_color="transparent", 
-            #                         text_color="white", anchor="w", hover_color="#3a3a3a",
-            #                         command=self.capture_current_state) # 여기를 수정
-            # btn_capture.pack(fill="x", pady=2)
-
+            self.context_menu.add_separator()
+            if has_changes: self.context_menu.add_command(label="  변경사항 초기화하기", command=self.revert_changes)
+            self.context_menu.add_command(label=f"{save_prefix}설정을 {fname}에 저장하기", command=self.save_config)
+            self.context_menu.add_command(label=f"{save_prefix}설정을 다른 이름으로 저장", command=self.save_config_as)
+            self.context_menu.add_command(label="  기존 설정 파일 불러오기", command=self.load_config_from_file)
             self.context_menu.add_separator()
             # [추가] 윈도우 제어 옵션
-            topmost_prefix = "• " if self.always_on_top else "   "
-            self.context_menu.add_command(label=f"{topmost_prefix}항상 위에 표시", command=self.toggle_always_on_top)
-            self.context_menu.add_command(label="   최소화", command=self.minimize_window)
-            self.context_menu.add_separator()
+            self.context_menu.add_command(label="  최소화", command=self.minimize_window)
             self.context_menu.add_command(label="  종료", command=self.on_closing)
 
     def open_slider_window(self):
@@ -1123,10 +1134,12 @@ class FullKeyboardOverlay(ctk.CTk):
             self.save_config()
 
     def toggle_edit_mode(self):
+        mode = self.modes[self.current_mode] # 현재 모드 설정값 가져오기
         if self.edit_mode:
             # [편집 모드 종료 -> 일반 모드로]
             self.withdraw()
             self._update_window_style(False) # 타이틀 바 제거
+            self.geometry(f"{mode['w']}x{mode['h']}")
             self.set_transparency(self.pre_edit_alpha)
             self.configure(fg_color="#1a1a1a")
             self.title("LostSaga KeyboardViewer")
@@ -1136,9 +1149,10 @@ class FullKeyboardOverlay(ctk.CTk):
             self.withdraw()
             self.pre_edit_alpha = self.current_alpha
             self._update_window_style(True)  # 타이틀 바 복구
-            self.title("직접 편집 모드 - 키를 클릭하여 수정하세요")
+            self.geometry(f"{mode['w']}x{mode['h'] + 40}")
             self.set_transparency(1.0)
             self.configure(fg_color="#2a1a1a")
+            self.title("직접 편집 모드 - 키를 클릭하여 수정하세요")
             self.deiconify()
             
         self.edit_mode = not self.edit_mode
@@ -1159,7 +1173,7 @@ class FullKeyboardOverlay(ctk.CTk):
         self.current_mode = mode_key
         mode = self.modes[mode_key]
         self.geometry(f"{mode['w']}x{mode['h']}")
-        self.scale_factor = 1.0 * self.scale_factor_w
+        # self.scale_factor = 1.0
         self.update_idletasks()
         self.aspect_ratio = mode['w'] / mode['h']
         self.refresh_ui()
@@ -1167,45 +1181,48 @@ class FullKeyboardOverlay(ctk.CTk):
     def reset_to_original_size(self):
         mode = self.modes[self.current_mode]
         self.geometry(f"{mode['w']}x{mode['h']}")
-        self.scale_factor = 1.0 * self.scale_factor_w
+        # self.scale_factor = 1.0
         self.update_idletasks()
         self.aspect_ratio = mode['w'] / mode['h']
         self.refresh_ui()
 
-    def check_edge(self, event):
-        """[수정] 대각선 방향을 포함하여 리사이징 영역을 정밀하게 감지합니다."""
-        if self.resizing: return
+    # def check_edge(self, event):
+    #     """[수정] 대각선 방향을 포함하여 리사이징 영역을 정밀하게 감지합니다."""
+    #     if self.resizing: return
         
-        # 마우스의 윈도우 상대 좌표 계산 (정밀도 향상)
-        x = self.winfo_pointerx() - self.winfo_rootx()
-        y = self.winfo_pointery() - self.winfo_rooty()
-        w, h = self.winfo_width(), self.winfo_height()
+    #     # 마우스의 윈도우 상대 좌표 계산 (정밀도 향상)
+    #     x = self.winfo_pointerx() - self.winfo_rootx()
+    #     y = self.winfo_pointery() - self.winfo_rooty()
+    #     w, h = self.winfo_width(), self.winfo_height()
         
-        margin = 20 # 감지 영역 확대
-        at_top, at_bottom = y < margin, y > h - margin
-        at_left, at_right = x < margin, x > w - margin
+    #     margin = 20 # 감지 영역 확대
+    #     at_top, at_bottom = y < margin, y > h - margin
+    #     at_left, at_right = x < margin, x > w - margin
         
-        # 대각선 감지 우선 순위 부여
-        if at_top and at_left: self.resize_edge = "nw"; self.config(cursor="size_nw_se")
-        elif at_top and at_right: self.resize_edge = "ne"; self.config(cursor="size_ne_sw")
-        elif at_bottom and at_left: self.resize_edge = "sw"; self.config(cursor="size_ne_sw")
-        elif at_bottom and at_right: self.resize_edge = "se"; self.config(cursor="size_nw_se")
-        elif at_top: self.resize_edge = "n"; self.config(cursor="size_ns")
-        elif at_bottom: self.resize_edge = "s"; self.config(cursor="size_ns")
-        elif at_left: self.resize_edge = "w"; self.config(cursor="size_we")
-        elif at_right: self.resize_edge = "e"; self.config(cursor="size_we")
-        else:
-            self.resize_edge = None
-            self.config(cursor="")
+    #     # 대각선 감지 우선 순위 부여
+    #     if at_top and at_left: self.resize_edge = "nw"; self.config(cursor="size_nw_se")
+    #     elif at_top and at_right: self.resize_edge = "ne"; self.config(cursor="size_ne_sw")
+    #     elif at_bottom and at_left: self.resize_edge = "sw"; self.config(cursor="size_ne_sw")
+    #     elif at_bottom and at_right: self.resize_edge = "se"; self.config(cursor="size_nw_se")
+    #     elif at_top: self.resize_edge = "n"; self.config(cursor="size_ns")
+    #     elif at_bottom: self.resize_edge = "s"; self.config(cursor="size_ns")
+    #     elif at_left: self.resize_edge = "w"; self.config(cursor="size_we")
+    #     elif at_right: self.resize_edge = "e"; self.config(cursor="size_we")
+    #     else:
+    #         self.resize_edge = None
+    #         self.config(cursor="")
 
     def _update_window_style(self, show_caption=False):
-        """[수정] 시스템 테두리를 제거하여 보라색 여백을 없애고 깔끔한 오버레이를 만듭니다."""
+        """[수정] 리사이징 테두리(WS_THICKFRAME) 비트를 제거하여 크기를 고정합니다."""
         hwnd = ctypes.windll.user32.GetParent(self.winfo_id())
-        # WS_POPUP (0x80000000)을 사용하여 캡션과 테두리를 모두 제거
+        
         if show_caption:
-            new_style = ctypes.windll.user32.GetWindowLongW(hwnd, -16) | 0x00C00000 | 0x00040000
+            # 0x00040000 (WS_THICKFRAME)을 제거하여 타이틀 바만 표시되게 합니다.
+            new_style = ctypes.windll.user32.GetWindowLongW(hwnd, -16) | 0x00C00000 
+            # 0x00040000 비트를 명시적으로 끄고 싶다면 아래와 같이 작성합니다.
+            new_style &= ~0x00040000
         else:
-            new_style = 0x80000000 
+            new_style = 0x80000000 # WS_POPUP
             
         ctypes.windll.user32.SetWindowLongW(hwnd, -16, new_style)
         ctypes.windll.user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0020 | 0x0002 | 0x0001 | 0x0004)
@@ -1218,66 +1235,21 @@ class FullKeyboardOverlay(ctk.CTk):
         self.main_frame.configure(border_color="#1a1a1a")
 
     def on_button_press(self, event):
-        if self.resize_edge:
-            self.resizing = True
-            self.start_x_root, self.start_y_root = event.x_root, event.y_root
-            self.start_geom = (self.winfo_x(), self.winfo_y(), self.winfo_width(), self.winfo_height())
-        else:
-            # [수정] 창 이동을 위한 시작 좌표를 화면 절대 좌표로 저장
-            self.start_drag_x_root = event.x_root
-            self.start_drag_y_root = event.y_root
-            self.start_win_x = self.winfo_x()
-            self.start_win_y = self.winfo_y()
+        # [수정] 리사이징 체크 없이 바로 드래그 시작 좌표 저장
+        self.start_drag_x_root = event.x_root
+        self.start_drag_y_root = event.y_root
+        self.start_win_x = self.winfo_x()
+        self.start_win_y = self.winfo_y()
 
     def on_button_release(self, event):
-        if self.resizing:
-            self.resizing = False
-            self.update_idletasks()
-            
-            # [수정] 배율 계산 시 아주 미세한 여백(0.97)을 두어 우측 끝 버튼이 잘리는 것을 방지
-            current_window_w = self.winfo_width()
-            base_w = self.modes[self.current_mode]['w']
-            self.scale_factor = (current_window_w / base_w) * 0.97 
-            
-            self.refresh_ui()
+        # [수정] 아무 내용도 남기지 않거나 필요 시 간단한 로직만 유지
+        pass
 
     def handle_mouse_action(self, event):
-        """[수정] 실시간 창 이동 및 정확한 방향의 리사이징을 구현합니다."""
-        if self.resizing:
-            orig_x, orig_y, orig_w, orig_h = self.start_geom
-            # 화면 전체 좌표 기준 변화량 계산
-            dx = event.x_root - self.start_x_root
-            dy = event.y_root - self.start_y_root
-            
-            # [수정] 현재 모드에 맞는 최소 너비 제한을 가져옵니다.
-            mode_data = self.modes.get(self.current_mode, {})
-            current_min_w = mode_data.get("min_w", 400)
-            
-            if any(x in self.resize_edge for x in ["n", "s"]) and not any(x in self.resize_edge for x in ["e", "w"]):
-                change_h = dy if "s" in self.resize_edge else -dy
-                # 세로 리사이징 시에도 최소 너비 비례 높이 적용
-                new_h = max(current_min_w / self.aspect_ratio, orig_h + change_h)
-                new_w = new_h * self.aspect_ratio
-            else:
-                change_w = dx if "e" in self.resize_edge else -dx
-                new_w = max(current_min_w, orig_w + change_w)
-                new_h = new_w / self.aspect_ratio
-            
-            # 좌측/상단 드래그 시 좌표 보정
-            new_x = orig_x + (orig_w - new_w) if "w" in self.resize_edge else orig_x
-            new_y = orig_y + (orig_h - new_h) if "n" in self.resize_edge else orig_y
-            
-            # 즉시 윈도우 크기 반영 (실시간 리사이징)
-            self.geometry(f"{int(new_w)}x{int(new_h)}+{int(new_x)}+{int(new_y)}")
-            
-        else:
-            # [해결 2] 드래그 시 실시간 창 이동 (순간이동 방지)
-            # 버튼이나 레이아웃 어디를 잡아도 마우스 이동에 따라 즉시 창이 따라옵니다.
-            dx = event.x_root - self.start_drag_x_root
-            dy = event.y_root - self.start_drag_y_root
-            
-            # geometry를 Motion 이벤트 안에서 호출하여 실시간성 확보
-            self.geometry(f"+{self.start_win_x + dx}+{self.start_win_y + dy}")
+        # [수정] 리사이징 로직을 완전히 제거하고 '창 이동'만 수행
+        dx = event.x_root - self.start_drag_x_root
+        dy = event.y_root - self.start_drag_y_root
+        self.geometry(f"+{self.start_win_x + dx}+{self.start_win_y + dy}")
 
     def create_key(self, parent, text, row, col, width=None, height=None, columnspan=1, rowspan=1, key_code=None):
         """[수정] Minimal 모드 시 방향키는 텍스트를, 나머지는 고정 이미지를 출력함"""
@@ -1322,29 +1294,30 @@ class FullKeyboardOverlay(ctk.CTk):
     def setup_layout(self):
         s = self.base_key_size
         
-        # [중요] 이전 모드에서 사용된 가중치 설정 초기화
-        for i in range(5): self.main_frame.grid_columnconfigure(i, weight=0)
+        # 1. 메인 프레임의 행/열 가중치를 설정하여 중앙 정렬 기반 마련
+        self.main_frame.grid_rowconfigure(0, weight=1)
+        self.main_frame.grid_columnconfigure(0, weight=1)
+        # 2. 모든 키보드 요소를 담을 중앙 컨테이너 생성
+        # sticky="" 설정을 통해 이 컨테이너 자체가 창의 정중앙에 위치함
+        center_container = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        center_container.grid(row=0, column=0, sticky="")
+        
+        # [추가] 상하 중앙 정렬을 위해 0번 행에 가중치를 부여합니다.
+        self.main_frame.grid_rowconfigure(0, weight=1)
 
         if self.current_mode.startswith("minimal"):
-            # 1. 메인 프레임 내부에 grid 배치 (pack 혼용 금지)
-            left_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-            left_frame.grid(row=0, column=0, sticky="n")
+            left_frame = ctk.CTkFrame(center_container, fg_color="transparent")
+            left_frame.pack(side="left", padx=10)
             
-            # [수정] 0.5칸 이동을 위해 grid 밀도를 높임 (각 키는 2칸씩 차지)
-            
-            left_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-            left_frame.grid(row=0, column=0, sticky="n", padx=0)
-            
-            # QWER / ASD 배치 (기존 로직 유지하되 grid 사용)
+            # QWER / ASD 배치 로직
             for i, char in enumerate(["q", "w", "e", "r"]):
                 self.create_key(left_frame, char.upper(), 0, i * 2, columnspan=2, key_code=char)
             for i, char in enumerate(["a", "s", "d"]):
                 self.create_key(left_frame, char.upper(), 1, i * 2 + 1, columnspan=2, key_code=char)
                 
-            # 2. 방향키 영역: 고정 padx 대신 스케일에 비례하는 gap 적용
-            arrow_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-            gap = int(max(2, 10 * self.scale_factor))
-            arrow_frame.grid(row=0, column=1, sticky="n", padx=(gap, 0))
+            # 2. 방향키 영역
+            arrow_frame = ctk.CTkFrame(center_container, fg_color="transparent")
+            arrow_frame.pack(side="left", padx=10)
 
             if self.current_mode == "minimal_tkl":
                 self.create_key(arrow_frame, "↑", 0, 1, key_code="up")
@@ -1370,14 +1343,13 @@ class FullKeyboardOverlay(ctk.CTk):
             for c in range(3): self.main_frame.grid_columnconfigure(c, weight=0)
 
             # 펑션 키 프레임
-            f_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-            f_frame.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(0, 5)) # columnspan 확장
-            # 1. Esc (4칸)
+            f_frame = ctk.CTkFrame(center_container, fg_color="transparent")
+            f_frame.grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 10))# 1. Esc (4칸)
             self.create_key(f_frame, "Esc", 0, 0, width=s, columnspan=4)
 
             # 2. 여백 1: Esc와 F1 사이 (4칸)
             # [수정] 너비를 s * 1.0에서 1.2 정도로 미세하게 늘림
-            ctk.CTkLabel(f_frame, text="", width=s * 1.2).grid(row=0, column=4, columnspan=4)
+            ctk.CTkLabel(f_frame, text="", width=s * 1.0).grid(row=0, column=4, columnspan=4)
 
             # 3. F1 ~ F4 (16칸)
             for i in range(1, 5):
@@ -1400,9 +1372,8 @@ class FullKeyboardOverlay(ctk.CTk):
                 self.create_key(f_frame, f"F{i}", 0, 44 + ((i-9) * 4), width=s, columnspan=4)
             
             # 메인 키 프레임
-            m_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-            m_frame.grid(row=2, column=0, sticky="nw")
-
+            m_frame = ctk.CTkFrame(center_container, fg_color="transparent")
+            m_frame.grid(row=1, column=0, sticky="nw")
             # --- Row 0: 숫자열 (1키=4칸 기준, 총 60칸) ---
             for i, char in enumerate(["`","1","2","3","4","5","6","7","8","9","0","-","="]):
                 self.create_key(m_frame, char, 0, i * 4, columnspan=4)
@@ -1441,15 +1412,15 @@ class FullKeyboardOverlay(ctk.CTk):
             # Numpad
             # 넘패드 및 기타 프레임들도 순차적으로 column 번호 조정
             # 방향키/인서트 프레임
-            n_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-            n_frame.grid(row=2, column=1, sticky="n", padx=int(5 * self.scale_factor))
+            n_frame = ctk.CTkFrame(center_container, fg_color="transparent")
+            n_frame.grid(row=1, column=1, sticky="n", padx=15)
             for r, row in enumerate([["insert", "home", "page_up"], ["delete", "end", "page_down"]]):
                 for c, k in enumerate(row): self.create_key(n_frame, k[:3].upper(), r, c, key_code=k)
             a_frame = ctk.CTkFrame(n_frame, fg_color="transparent"); a_frame.grid(row=2, column=0, columnspan=3, pady=(s*self.scale_factor, 0))
             self.create_key(a_frame, "↑", 0, 1, key_code="up"); self.create_key(a_frame, "←", 1, 0, key_code="left"); self.create_key(a_frame, "↓", 1, 1, key_code="down"); self.create_key(a_frame, "→", 1, 2, key_code="right")
             if self.current_mode == "full":
-                t_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-                t_frame.grid(row=2, column=2, sticky="nw") # 오른쪽 끝에 밀착
+                t_frame = ctk.CTkFrame(center_container, fg_color="transparent")
+                t_frame.grid(row=1, column=2, sticky="nw")
                 for r, row in enumerate([[("NL","num_lock"),("/","numpad_div"),("*","numpad_mul"),("-","numpad_sub")],[("7","numpad_7"),("8","numpad_8"),("9","numpad_9")],[("4","numpad_4"),("5","numpad_5"),("6","numpad_6")],[("1","numpad_1"),("2","numpad_2"),("3","numpad_3")]]):
                     for c, (txt, kid) in enumerate(row): self.create_key(t_frame, txt, r, c, key_code=kid)
                 self.create_key(t_frame, "0", 4, 0, width=s*2, columnspan=2, key_code="numpad_0"); self.create_key(t_frame, ".", 4, 2, key_code="numpad_dot"); self.create_key(t_frame, "+", 1, 3, height=s*2, rowspan=2, key_code="numpad_add"); self.create_key(t_frame, "Ent", 3, 3, height=s*2, rowspan=2, key_code="numpad_enter")
