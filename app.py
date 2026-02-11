@@ -90,7 +90,7 @@ class ColorSettings(ctk.CTkToplevel):
         super().__init__(parent)
         self.parent = parent
         self.title("색상 테마 설정")
-        self.geometry("340x300") # [수정] 너비와 높이를 2x2 배치에 맞게 조정
+        self.geometry("340x380") # [수정] 너비와 높이를 2x2 배치에 맞게 조정
         self.attributes("-topmost", True)
         self.transient(parent)
         self.grab_set()
@@ -131,10 +131,19 @@ class ColorSettings(ctk.CTkToplevel):
         self.text_btn = ctk.CTkButton(frame_text, text="색상 변경", width=100, fg_color=parent.key_text_color,
                                       command=lambda: self.pick_color("text"))
         self.text_btn.pack(pady=5)
+
+        # --- 5. [신규] 눌린 키 색상 (Row 2, Col 0) ---
+        frame_pressed = ctk.CTkFrame(self, fg_color="transparent")
+        frame_pressed.grid(row=2, column=0, padx=10, pady=10)
+        ctk.CTkLabel(frame_pressed, text="눌린 키(반응)", font=("Arial", 12, "bold")).pack()
+        self.pressed_btn = ctk.CTkButton(frame_pressed, text="색상 변경", width=100, 
+                                         fg_color=parent.key_pressed_color,
+                                         command=lambda: self.pick_color("pressed"))
+        self.pressed_btn.pack(pady=5)
         
         # --- 초기화 버튼 (Row 2, 전체 너비) ---
         ctk.CTkButton(self, text="기본값으로 복원", fg_color="#555555", width=200,
-                      command=self.reset_colors).grid(row=2, column=0, columnspan=2, pady=20)
+                      command=self.reset_colors).grid(row=3, column=0, columnspan=2, pady=20)
 
     def pick_color(self, target):
         color = colorchooser.askcolor(title="색상 선택", parent=self)[1]
@@ -151,6 +160,9 @@ class ColorSettings(ctk.CTkToplevel):
             elif target == "text": # [추가] 텍스트 색상 변경 처리
                 self.parent.change_key_text_color(color)
                 self.text_btn.configure(fg_color=color)
+            elif target == "pressed": # [추가]
+                self.parent.change_key_pressed_color(color)
+                self.pressed_btn.configure(fg_color=color)
 
     def reset_colors(self):
         # 기본값 복원
@@ -164,6 +176,8 @@ class ColorSettings(ctk.CTkToplevel):
         self.key_btn.configure(fg_color="#333333")
         self.border_btn.configure(fg_color="#555555")
         self.text_btn.configure(fg_color="white") # [추가]
+        self.parent.change_key_pressed_color("#aaaaaa") # [수정] 기본값을 밝은 회색으로 변경
+        self.pressed_btn.configure(fg_color="#aaaaaa")
 
 # class TransparencySettings(ctk.CTkToplevel):
 #     """grab_set()을 사용하여 메인 오버레이보다 항상 위에 뜨도록 강제한 버전"""
@@ -962,6 +976,20 @@ class FullKeyboardOverlay(ctk.CTk):
         # 1. 프로그램 실행 시 리소스 미리 불러오기
         self.preload_resources()
         
+        self.PRESET_THEMES = {
+            "Dark": {
+                "bg": "#1a1a1a", "key": "#333333", "border": "#555555", 
+                "text": "white", "pressed": "#aaaaaa"
+            },
+            "Light": {
+                "bg": "#f0f0f0", "key": "#ffffff", "border": "#bbbbbb", 
+                "text": "black", "pressed": "#252525"
+            },
+            "Purple": {
+                "bg": "#240046", "key": "#3c096c", "border": "#7b2cbf", 
+                "text": "#e0aaff", "pressed": "#ccb5df"
+            }
+        }
         self.modes = {
             "full": {"w": 1040, "h": 320}, 
             "tkl": {"w": 840, "h": 320},
@@ -1043,6 +1071,7 @@ class FullKeyboardOverlay(ctk.CTk):
         self.key_bg_color = config_data.get("key_bg_color", "#333333")
         self.key_border_color = config_data.get("key_border_color", "#555555")
         self.key_text_color = config_data.get("key_text_color", "white")
+        self.key_pressed_color = config_data.get("key_pressed_color", "#aaaaaa")
         self.configure(fg_color=self.bg_color) # 로드된 배경색 적용
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=0)
         self.main_frame.pack(expand=True, fill="both")
@@ -1139,7 +1168,8 @@ class FullKeyboardOverlay(ctk.CTk):
             "bg_color": self.bg_color,
             "key_bg_color": self.key_bg_color,
             "key_border_color": self.key_border_color,
-            "key_text_color": self.key_text_color 
+            "key_text_color": self.key_text_color,
+            "key_pressed_color": self.key_pressed_color
         }
         try:
             with open(target, "w", encoding="utf-8") as f: 
@@ -1200,6 +1230,11 @@ class FullKeyboardOverlay(ctk.CTk):
         for btn in self.buttons.values():
             btn.configure(text_color=color)
 
+    def change_key_pressed_color(self, color):
+        """[신규] 눌린 키 색상 변경 및 저장"""
+        self.key_pressed_color = color
+        self.save_config()
+
     def open_color_settings(self):
         ColorSettings(self)
 
@@ -1219,16 +1254,27 @@ class FullKeyboardOverlay(ctk.CTk):
         layout_menu.add_command(label=f"  {'• ' if self.current_mode == 'tkl' else '   '}텐키리스 (TKL)", command=lambda: self.switch_layout("tkl"))
         layout_menu.add_command(label=f"  {'• ' if self.current_mode == 'minimal_full' else '   '}최소-풀배열 (Minimal Full)", command=lambda: self.switch_layout("minimal_full"))
         layout_menu.add_command(label=f"  {'• ' if self.current_mode == 'minimal_tkl' else '   '}최소-텐키리스 (Minimal TKL)", command=lambda: self.switch_layout("minimal_tkl"))
-        self.context_menu.add_cascade(label="  키보드 레이아웃 설정", menu=layout_menu)
+        self.context_menu.add_cascade(label="  키보드 레이아웃 설정...", menu=layout_menu)
 
         if self.edit_mode: self.context_menu.add_command(label="  직접 편집 완료하기", command=self.toggle_edit_mode)
         else:
             self.context_menu.add_separator()
+            # 용병 아이콘 설정
             img_menu = tk.Menu(self, tearoff=0, bg="#2b2b2b", fg="white", activebackground="#1f538d")
             img_menu.add_command(label="  인게임 설정으로 편집하기", command=lambda: AccountSelectionPopup(self, self.game_path))
             img_menu.add_command(label="  직접 편집하기", command=self.toggle_edit_mode)
-            self.context_menu.add_cascade(label="  용병 아이콘 설정", menu=img_menu)
-            self.context_menu.add_command(label="  색상 테마 설정 열기", command=self.open_color_settings)
+            self.context_menu.add_cascade(label="  용병 아이콘 설정...", menu=img_menu)
+            # 색상 테마 설정
+            theme_menu = tk.Menu(self.context_menu, tearoff=0, bg="#2b2b2b", fg="white", activebackground="#1f538d")
+            theme_menu.add_command(label="  Dark Theme (기본)", command=lambda: self.apply_preset_theme("Dark"))
+            theme_menu.add_command(label="  Light Theme", command=lambda: self.apply_preset_theme("Light"))
+            theme_menu.add_command(label="  Purple Theme", command=lambda: self.apply_preset_theme("Purple"))
+            theme_menu.add_separator()
+            # 2. 직접 설정하기 (기존 팝업 열기)
+            theme_menu.add_command(label="  커스텀 설정...", command=self.open_color_settings)
+            # 3. 메인 메뉴에 하위 메뉴 등록
+            self.context_menu.add_cascade(label="  색상 테마 설정...", menu=theme_menu)
+            # self.context_menu.add_command(label="  색상 테마 설정 열기", command=self.open_color_settings)
             # self.context_menu.add_command(label="  키보드 투명도 설정 열기", command=self.open_slider_window)
             # self.context_menu.add_command(label="  모든 설정 완전 초기화", command=self.reset_all_settings)
             bg_trans_prefix = "• " if self.use_transparent_bg else "  "
@@ -1240,8 +1286,8 @@ class FullKeyboardOverlay(ctk.CTk):
             self.context_menu.add_command(label="  현재 상태 캡쳐하기", command=self.capture_current_state)
             self.context_menu.add_separator()
             if has_changes: self.context_menu.add_command(label="  변경사항 초기화하기", command=self.revert_changes)
-            self.context_menu.add_command(label=f"{save_prefix}설정을 {fname}에 저장하기", command=self.save_config)
-            self.context_menu.add_command(label=f"{save_prefix}설정을 다른 이름으로 저장", command=self.save_config_as)
+            self.context_menu.add_command(label=f"{save_prefix}{fname}에 설정 저장", command=self.save_config)
+            self.context_menu.add_command(label=f"{save_prefix}다른 이름으로 설정 저장", command=self.save_config_as)
             self.context_menu.add_command(label="  기존 설정 파일 불러오기", command=self.load_config_from_file)
             self.context_menu.add_separator()
             # [추가] 윈도우 제어 옵션
@@ -1596,6 +1642,30 @@ class FullKeyboardOverlay(ctk.CTk):
                     for c, (txt, kid) in enumerate(row): self.create_key(t_frame, txt, r, c, key_code=kid)
                 self.create_key(t_frame, "0", 4, 0, width=s*2, columnspan=2, key_code="numpad_0"); self.create_key(t_frame, ".", 4, 2, key_code="numpad_dot"); self.create_key(t_frame, "+", 1, 3, height=s*2, rowspan=2, key_code="numpad_add"); self.create_key(t_frame, "Ent", 3, 3, height=s*2, rowspan=2, key_code="numpad_enter")
 
+    def apply_preset_theme(self, theme_name):
+        """[신규] 프리셋 테마를 적용하고 저장합니다."""
+        if theme_name not in self.PRESET_THEMES: return
+
+        theme = self.PRESET_THEMES[theme_name]
+        
+        # 1. 색상 변수 일괄 업데이트
+        self.bg_color = theme["bg"]
+        self.key_bg_color = theme["key"]
+        self.key_border_color = theme["border"]
+        self.key_text_color = theme["text"]
+        self.key_pressed_color = theme["pressed"]
+
+        # 2. 윈도우 배경색 적용
+        self.configure(fg_color=self.bg_color)
+
+        # 3. 모든 키 버튼의 속성 즉시 변경 (재생성 없이 속성만 변경하여 성능 최적화)
+        for btn in self.buttons.values():
+            btn.configure(
+                fg_color=self.key_bg_color,
+                border_color=self.key_border_color,
+                text_color=self.key_text_color
+            )
+
     def capture_current_state(self):
         """[수정] 캡쳐 순간에만 투명도를 100%로 고정하여 선명한 이미지를 저장합니다."""
         try:
@@ -1646,7 +1716,8 @@ class FullKeyboardOverlay(ctk.CTk):
     def win32_filter(self, msg, data): self.last_is_extended = bool(data.flags & 0x01); return True
     def on_press(self, key):
         k = self.parse_key(key)
-        if k in self.buttons: self.buttons[k].configure(fg_color="#1f538d")
+        if k in self.buttons: 
+            self.buttons[k].configure(fg_color=self.key_pressed_color)
     def on_release(self, key):
         k = self.parse_key(key)
         if k in self.buttons: self.buttons[k].configure(fg_color=self.key_bg_color) # 설정된 색상으로 복구

@@ -9,5 +9,10 @@
         "f": "./resource/img/basic_icon_weapon.png"
     },
     "game_path": "C:\\Program Files\\LostSaga",
-    "last_account": "도륙"
+    "last_account": "도륙",
+    "bg_color": "#1a1a1a",
+    "key_bg_color": "#333333",
+    "key_border_color": "#555555",
+    "key_text_color": "white",
+    "key_pressed_color": "#aaaaaa"
 }
