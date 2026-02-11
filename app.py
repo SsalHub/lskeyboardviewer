@@ -559,13 +559,20 @@ class InGameKeyConfigPopup(ctk.CTkToplevel):
         for k in keys_to_remove:
             self.parent.key_bindings.pop(k, None)
 
-        # 현재 설정된 모든 조작키에 대해 새 바인딩 생성
+        # 방향키 기호 매핑
+        dir_symbols = {"UP": "↑", "DOWN": "↓", "LEFT": "←", "RIGHT": "→",
+                       "LEFTUP": "↖", "RIGHTUP": "↗", "LEFTDOWN": "↙", "RIGHTDOWN": "↘"}
+
         for ini_key, vk_str in self.all_key_data.items():
+            key_name = get_lostsaga_key_name(vk_str).lower()
             if ini_key in BASIC_ICON_MAP:
-                key_name = get_lostsaga_key_name(vk_str).lower()
                 self.parent.key_bindings[key_name] = f"./resource/img/{BASIC_ICON_MAP[ini_key]}"
+            elif ini_key in dir_symbols:
+                # 방향키 설정인 경우 특수 접두사 "DIR:"와 함께 기호를 저장합니다.
+                self.parent.key_bindings[key_name] = f"DIR:{dir_symbols[ini_key]}"
         
         self.parent.refresh_ui()
+        self.parent.save_config()
 
     def setup_soldier_slots(self):
         """하단 스크롤 영역에 1~50번 용병 슬롯을 배치합니다."""
@@ -788,7 +795,8 @@ class AccountSelectionPopup(ctk.CTkToplevel):
             # 2. 기본 조작 및 스킬 키 목록 정의
             extra_keys = [
                 "ATTACK", "DEFENSE", "JUMP", 
-                "CLOAK_SKILL", "HELM_SKILL", "ARMOR_SKILL", "WEAPON_SKILL"
+                "CLOAK_SKILL", "HELM_SKILL", "ARMOR_SKILL", "WEAPON_SKILL",
+                "UP", "DOWN", "LEFT", "RIGHT", "LEFTUP", "RIGHTUP", "LEFTDOWN", "RIGHTDOWN"
             ]
             
             # 3. 추가 키 데이터 추출
@@ -1092,8 +1100,8 @@ class FullKeyboardOverlay(ctk.CTk):
         layout_menu = tk.Menu(self.context_menu, tearoff=0, bg="#2b2b2b", fg="white", activebackground="#1f538d")
         layout_menu.add_command(label=f"  {'• ' if self.current_mode == 'full' else '   '}풀 배열 (Full)", command=lambda: self.switch_layout("full"))
         layout_menu.add_command(label=f"  {'• ' if self.current_mode == 'tkl' else '   '}텐키리스 (TKL)", command=lambda: self.switch_layout("tkl"))
-        layout_menu.add_command(label=f"  {'• ' if self.current_mode == 'minimal_tkl' else '   '}최소-텐키리스 (Minimal TKL)", command=lambda: self.switch_layout("minimal_tkl"))
         layout_menu.add_command(label=f"  {'• ' if self.current_mode == 'minimal_full' else '   '}최소-풀배열 (Minimal Full)", command=lambda: self.switch_layout("minimal_full"))
+        layout_menu.add_command(label=f"  {'• ' if self.current_mode == 'minimal_tkl' else '   '}최소-텐키리스 (Minimal TKL)", command=lambda: self.switch_layout("minimal_tkl"))
         self.context_menu.add_cascade(label="  키보드 레이아웃 설정", menu=layout_menu)
 
         if self.edit_mode: self.context_menu.add_command(label="  직접 편집 완료하기", command=self.toggle_edit_mode)
@@ -1274,15 +1282,22 @@ class FullKeyboardOverlay(ctk.CTk):
         img_obj = None
 
         # [방향키 정의] 텍스트 출력을 강제할 키 목록
-        dir_keys = ["up", "down", "left", "right", "numpad_0", "numpad_1", "numpad_2", "numpad_3", "numpad_4", "numpad_5", "numpad_6", "numpad_7", "numpad_8", "numpad_9"]
+        dir_keys = ["up", "down", "left", "right", "home", "end", "page_up", "page_down", "clear",
+                    "numpad_0", "numpad_1", "numpad_2", "numpad_3", "numpad_4", "numpad_5", 
+                    "numpad_6", "numpad_7", "numpad_8", "numpad_9"]
         minimal_fixed = {
             "q": "basic_icon_trinket.png", "w": "basic_icon_helmet.png", "e": "basic_icon_armor.png", "r": "basic_icon_weapon.png",
             "a": "basic_icon_jump.png", "s": "basic_icon_guard.png", "d": "basic_icon_attack.png"
         }
-
+        # 바인딩 확인
+        binding_val = self.key_bindings.get(target_id, "")
+        
         filename = None
-        # [수정] minimal 모드 분기 로직
-        if self.current_mode.startswith("minimal"):
+        if binding_val.startswith("DIR:"):
+            # 인게임 설정에 의해 방향키로 지정된 경우 화살표 출력
+            display_text = binding_val.split(":")[1]
+            filename = None
+        elif self.current_mode.startswith("minimal"):
             if target_id in dir_keys:
                 # 방향키는 이미지를 할당하지 않아 텍스트(↑ 등)가 출력됨
                 img_obj = None
@@ -1290,11 +1305,12 @@ class FullKeyboardOverlay(ctk.CTk):
                 filename = minimal_fixed[target_id]
         elif target_id in self.key_bindings:
             filename = os.path.basename(self.key_bindings[target_id])
+        elif binding_val:
+            filename = os.path.basename(binding_val)
 
-        # [수정] 이미지 크기 비율을 0.7로 낮춰 버튼 확장을 방지합니다.
         if filename and filename in self.image_cache:
             pil_img = self.image_cache[filename]
-            side = int(min(k_w, k_h) * 0.7) # 0.8 -> 0.7로 하향 조정
+            side = int(min(k_w, k_h) * 0.8) 
             img_obj = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(side, side))
             display_text = ""
         
@@ -1340,15 +1356,15 @@ class FullKeyboardOverlay(ctk.CTk):
                 self.create_key(arrow_frame, "→", 1, 2, key_code="right")
             
             elif self.current_mode == "minimal_full":
-                self.create_key(arrow_frame, "↖", 0, 0, key_code="home")
-                self.create_key(arrow_frame, "↑", 0, 1, key_code="up")
-                self.create_key(arrow_frame, "↗", 0, 2, key_code="page_up")
-                self.create_key(arrow_frame, "←", 1, 0, key_code="left")
-                self.create_key(arrow_frame, "↓", 1, 1, key_code="clear")
-                self.create_key(arrow_frame, "→", 1, 2, key_code="right")
-                self.create_key(arrow_frame, "↙", 2, 0, key_code="end")
-                self.create_key(arrow_frame, ".", 2, 1, key_code="down")
-                self.create_key(arrow_frame, "↘", 2, 2, key_code="page_down")
+                self.create_key(arrow_frame, "↖", 0, 0, key_code="numpad_7")
+                self.create_key(arrow_frame, "↑", 0, 1, key_code="numpad_8")
+                self.create_key(arrow_frame, "↗", 0, 2, key_code="numpad_9")
+                self.create_key(arrow_frame, "←", 1, 0, key_code="numpad_4")
+                self.create_key(arrow_frame, "↓", 1, 1, key_code="numpad_5")
+                self.create_key(arrow_frame, "→", 1, 2, key_code="numpad_6")
+                self.create_key(arrow_frame, "↙", 2, 0, key_code="numpad_1")
+                self.create_key(arrow_frame, ".", 2, 1, key_code="numpad_2")
+                self.create_key(arrow_frame, "↘", 2, 2, key_code="numpad_3")
         else:
             # content_cols = 3 if self.current_mode == "full" else 2
             # self.main_frame.grid_columnconfigure(0, weight=1); self.main_frame.grid_columnconfigure(content_cols + 1, weight=1)
@@ -1504,6 +1520,7 @@ class FullKeyboardOverlay(ctk.CTk):
             
             # 2. 넘락(Num Lock)이 켜져 있을 때의 가상 키 매핑 (기존 로직)
             vk_map = {
+                12:"numpad_5",
                 96:"numpad_0", 97:"numpad_1", 98:"numpad_2", 99:"numpad_3", 100:"numpad_4", 
                 101:"numpad_5", 102:"numpad_6", 103:"numpad_7", 104:"numpad_8", 105:"numpad_9", 
                 106:"numpad_mul", 107:"numpad_add", 109:"numpad_sub", 111:"numpad_div", 110:"numpad_dot", 144:"num_lock"
@@ -1517,14 +1534,14 @@ class FullKeyboardOverlay(ctk.CTk):
             extended_map = {
                 "up": "numpad_8", "down": "numpad_2", "left": "numpad_4", "right": "numpad_6",
                 "home": "numpad_7", "end": "numpad_1", "page_up": "numpad_9", "page_down": "numpad_3",
-                "insert": "numpad_0", "delete": "numpad_dot"
+                "insert": "numpad_0", "delete": "numpad_dot",
+                "clear": "numpad_5"
             }
             
             # 확장 키가 아닌데(last_is_extended == False) 위 목록에 해당하면 넘패드 키입니다.
             if not self.last_is_extended and k in extended_map:
                 return extended_map[k]
 
-            # 4. 기타 일반 문자 처리 (기존 로직)
             if hasattr(key, 'char') and key.char: return key.char.lower()
             return k
         except: 
@@ -1536,7 +1553,12 @@ class FullKeyboardOverlay(ctk.CTk):
 def get_lostsaga_key_name(vk_code_str):
     try:
         vk = int(vk_code_str)
-        mapping = {96: "`", 32: "space", 173: "caps_lock", 134: "left", 135: "right", 136: "up", 137: "down", 128: "shift", 129: "shift_r", 131: "ctrl_r", 156: "numpad_div", 157: "numpad_mul", 158: "numpad_sub", 159: "numpad_add", 160: "numpad_enter", 161: "numpad_.", 150: "insert", 152: "home", 154: "page_up", 151: "delete", 153: "end", 155: "page_down"}
+        mapping = {
+            96: "`", 32: "space", 173: "caps_lock", 134: "left", 135: "right", 136: "up", 137: "down", 
+            128: "shift", 129: "shift_r", 131: "ctrl_r", 156: "numpad_div", 157: "numpad_mul", 
+            158: "numpad_sub", 159: "numpad_add", 160: "numpad_enter", 161: "numpad_dot", # [수정]
+            150: "insert", 152: "home", 154: "page_up", 151: "delete", 153: "end", 155: "page_down"
+        }
         if 48 <= vk <= 57: return f"{vk - 48}"
         if 65 <= vk <= 90: return chr(vk).lower()
         if 97 <= vk <= 122: return f"{chr(vk)}"
