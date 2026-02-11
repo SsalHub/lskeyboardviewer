@@ -990,11 +990,25 @@ class FullKeyboardOverlay(ctk.CTk):
                     except: continue
 
     def on_closing(self):
-        if self.edit_mode: self.toggle_edit_mode()
-        else:
-            if self.key_bindings != self.saved_bindings:
-                if messagebox.askyesno("종료 확인", "변경사항이 저장되지 않았습니다.\n종료하시겠습니까?"): self.destroy()
-            else: self.destroy()
+        """프로그램 종료 시 리소스 점유를 확실히 해제하여 임시 폴더 삭제 오류를 방지합니다."""
+        # 1. 편집 모드일 경우 모드 해제 로직 수행
+        if self.edit_mode: 
+            self.toggle_edit_mode()
+            # 편집 모드 해제 후 바로 종료되지 않게 하려면 여기서 return을 하거나 
+            # 아래 저장 확인 로직으로 넘어가도록 구성합니다.
+
+        # 2. 저장되지 않은 내용 확인
+        if self.key_bindings != self.saved_bindings:
+            if not messagebox.askyesno("종료 확인", "변경사항이 저장되지 않았습니다.\n종료하시겠습니까?"):
+                return
+        
+        # 3. [핵심] 키보드 리스너 쓰레드를 명시적으로 정지
+        if hasattr(self, 'listener') and self.listener:
+            self.listener.stop()
+            
+        # 4. 모든 팝업 및 창 리소스 해제 후 종료
+        self.quit()    # 이벤트 루프 중지
+        self.destroy() # 창 파괴
 
     def load_config(self):
         if os.path.exists(self.config_file):
@@ -1480,16 +1494,41 @@ class FullKeyboardOverlay(ctk.CTk):
         k = self.parse_key(key)
         if k in self.buttons: self.buttons[k].configure(fg_color="#333333")
     def parse_key(self, key):
+        """[수정] 확장 키 플래그를 확인하여 일반 방향키와 넘패드 방향키를 정확히 구분합니다."""
         try:
             vk = getattr(key, 'vk', None)
-            if key == keyboard.Key.enter: return "numpad_enter" if self.last_is_extended else "enter"
-            vk_map = {96:"numpad_0", 97:"numpad_1", 98:"numpad_2", 99:"numpad_3", 100:"numpad_4", 101:"numpad_5", 102:"numpad_6", 103:"numpad_7", 104:"numpad_8", 105:"numpad_9", 106:"numpad_mul", 107:"numpad_add", 109:"numpad_sub", 111:"numpad_div", 110:"numpad_dot", 144:"num_lock"}
+            
+            # 1. 엔터키 구분 (기존 로직)
+            if key == keyboard.Key.enter: 
+                return "numpad_enter" if self.last_is_extended else "enter"
+            
+            # 2. 넘락(Num Lock)이 켜져 있을 때의 가상 키 매핑 (기존 로직)
+            vk_map = {
+                96:"numpad_0", 97:"numpad_1", 98:"numpad_2", 99:"numpad_3", 100:"numpad_4", 
+                101:"numpad_5", 102:"numpad_6", 103:"numpad_7", 104:"numpad_8", 105:"numpad_9", 
+                106:"numpad_mul", 107:"numpad_add", 109:"numpad_sub", 111:"numpad_div", 110:"numpad_dot", 144:"num_lock"
+            }
             if vk in vk_map: return vk_map[vk]
-            if vk == 21 or key == keyboard.Key.alt_r or (vk == 18 and self.last_is_extended): return "alt_gr"
-            if vk == 25 or key == keyboard.Key.ctrl_r or (vk == 17 and self.last_is_extended): return "ctrl_r"
+
+            # 3. [핵심 추가] 확장 키 플래그가 없는 방향키/기능키는 넘패드로 처리합니다.
+            k = str(key).replace('Key.', '').lower()
+            
+            # 넘패드 방향키와 전용 방향키 구분 매핑 테이블
+            extended_map = {
+                "up": "numpad_8", "down": "numpad_2", "left": "numpad_4", "right": "numpad_6",
+                "home": "numpad_7", "end": "numpad_1", "page_up": "numpad_9", "page_down": "numpad_3",
+                "insert": "numpad_0", "delete": "numpad_dot"
+            }
+            
+            # 확장 키가 아닌데(last_is_extended == False) 위 목록에 해당하면 넘패드 키입니다.
+            if not self.last_is_extended and k in extended_map:
+                return extended_map[k]
+
+            # 4. 기타 일반 문자 처리 (기존 로직)
             if hasattr(key, 'char') and key.char: return key.char.lower()
-            return str(key).replace('Key.', '').lower()
-        except: return None
+            return k
+        except: 
+            return None
     def open_slider_window(self): TransparencySettings(self)
     def set_transparency(self, value): self.current_alpha = value; self.attributes("-alpha", value)
     def show_menu(self, event): self.create_context_menu(); self.context_menu.post(event.x_root, event.y_root)
