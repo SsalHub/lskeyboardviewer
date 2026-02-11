@@ -1,6 +1,6 @@
 import customtkinter as ctk
 import tkinter as tk
-from tkinter import messagebox, filedialog
+from tkinter import messagebox, filedialog, colorchooser
 from pynput import keyboard
 from PIL import Image, ImageTk, ImageGrab
 import os
@@ -85,69 +85,149 @@ class KeyCapturePopup(ctk.CTkToplevel):
         self.grab_release()
         super().destroy()
 
-class TransparencySettings(ctk.CTkToplevel):
-    """grab_set()을 사용하여 메인 오버레이보다 항상 위에 뜨도록 강제한 버전"""
+class ColorSettings(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
-        self.title("투명도 설정")
-        self.geometry("300x160")
-        
-        # [핵심 수정] 부모 창보다 위에 뜨도록 하는 3종 세트
-        self.attributes("-topmost", True)  # 최상단 고정
-        self.transient(parent)             # 부모 창에 종속시킴 (항상 부모 위에 위치)
-        
-        # 창이 완전히 생성된 후 이벤트를 독점하도록 설정
-        self.wait_visibility()             # 창이 보일 때까지 대기
-        self.grab_set()                    # 이 창을 닫기 전까지 부모 창 조작 불가 및 레이어 고정
-        
+        self.title("색상 테마 설정")
+        self.geometry("340x300") # [수정] 너비와 높이를 2x2 배치에 맞게 조정
+        self.attributes("-topmost", True)
+        self.transient(parent)
+        self.grab_set()
         self.resizable(False, False)
+
+        # 그리드 설정 (2열 균등 배치)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)
+
+        # --- 1. 윈도우 배경색 (Row 0, Col 0) ---
+        frame_win = ctk.CTkFrame(self, fg_color="transparent")
+        frame_win.grid(row=0, column=0, padx=10, pady=10)
+        ctk.CTkLabel(frame_win, text="윈도우 배경", font=("Arial", 12, "bold")).pack()
+        self.win_btn = ctk.CTkButton(frame_win, text="색상 변경", width=100, fg_color=parent.bg_color,
+                                     command=lambda: self.pick_color("window"))
+        self.win_btn.pack(pady=5)
+
+        # --- 2. 키 버튼 색상 (Row 0, Col 1) ---
+        frame_key = ctk.CTkFrame(self, fg_color="transparent")
+        frame_key.grid(row=0, column=1, padx=10, pady=10)
+        ctk.CTkLabel(frame_key, text="키 배경", font=("Arial", 12, "bold")).pack()
+        self.key_btn = ctk.CTkButton(frame_key, text="색상 변경", width=100, fg_color=parent.key_bg_color,
+                                     command=lambda: self.pick_color("key"))
+        self.key_btn.pack(pady=5)
+
+        # --- 3. 키 테두리 색상 (Row 1, Col 0) ---
+        frame_border = ctk.CTkFrame(self, fg_color="transparent")
+        frame_border.grid(row=1, column=0, padx=10, pady=10)
+        ctk.CTkLabel(frame_border, text="키 테두리", font=("Arial", 12, "bold")).pack()
+        self.border_btn = ctk.CTkButton(frame_border, text="색상 변경", width=100, fg_color=parent.key_border_color,
+                                        command=lambda: self.pick_color("border"))
+        self.border_btn.pack(pady=5)
+
+        # --- 4. [신규] 키 라벨 색상 (Row 1, Col 1) ---
+        frame_text = ctk.CTkFrame(self, fg_color="transparent")
+        frame_text.grid(row=1, column=1, padx=10, pady=10)
+        ctk.CTkLabel(frame_text, text="글자(라벨)", font=("Arial", 12, "bold")).pack()
+        self.text_btn = ctk.CTkButton(frame_text, text="색상 변경", width=100, fg_color=parent.key_text_color,
+                                      command=lambda: self.pick_color("text"))
+        self.text_btn.pack(pady=5)
         
-        # UI 구성
-        self.label = ctk.CTkLabel(self, text="오버레이 투명도", font=("Arial", 14, "bold"))
-        self.label.pack(pady=(15, 0))
+        # --- 초기화 버튼 (Row 2, 전체 너비) ---
+        ctk.CTkButton(self, text="기본값으로 복원", fg_color="#555555", width=200,
+                      command=self.reset_colors).grid(row=2, column=0, columnspan=2, pady=20)
 
-        input_frame = ctk.CTkFrame(self, fg_color="transparent")
-        input_frame.pack(pady=10, padx=20, fill="x")
+    def pick_color(self, target):
+        color = colorchooser.askcolor(title="색상 선택", parent=self)[1]
+        if color:
+            if target == "window":
+                self.parent.change_window_color(color)
+                self.win_btn.configure(fg_color=color)
+            elif target == "key":
+                self.parent.change_key_color(color)
+                self.key_btn.configure(fg_color=color)
+            elif target == "border":
+                self.parent.change_key_border_color(color)
+                self.border_btn.configure(fg_color=color)
+            elif target == "text": # [추가] 텍스트 색상 변경 처리
+                self.parent.change_key_text_color(color)
+                self.text_btn.configure(fg_color=color)
 
-        # 슬라이더 조절 (0.1 ~ 1.0)
-        self.slider = ctk.CTkSlider(input_frame, from_=0.1, to=1.0, command=self.update_from_slider)
-        self.slider.set(parent.current_alpha) 
-        self.slider.pack(side="left", expand=True, padx=(0, 10))
+    def reset_colors(self):
+        # 기본값 복원
+        self.parent.change_window_color("#1a1a1a")
+        self.parent.change_key_color("#333333")
+        self.parent.change_key_border_color("#555555")
+        self.parent.change_key_text_color("white") # [추가] 기본 글자색 흰색
+        
+        # 버튼 색상 UI 갱신
+        self.win_btn.configure(fg_color="#1a1a1a")
+        self.key_btn.configure(fg_color="#333333")
+        self.border_btn.configure(fg_color="#555555")
+        self.text_btn.configure(fg_color="white") # [추가]
 
-        # 수치 직접 입력창
-        self.entry = ctk.CTkEntry(input_frame, width=60, justify="center")
-        self.entry.insert(0, str(int(parent.current_alpha * 100)))
-        self.entry.pack(side="left")
-        self.entry.bind("<Return>", self.update_from_entry)
+# class TransparencySettings(ctk.CTkToplevel):
+#     """grab_set()을 사용하여 메인 오버레이보다 항상 위에 뜨도록 강제한 버전"""
+#     def __init__(self, parent):
+#         super().__init__(parent)
+#         self.parent = parent
+#         self.title("투명도 설정")
+#         self.geometry("300x160")
+        
+#         # [핵심 수정] 부모 창보다 위에 뜨도록 하는 3종 세트
+#         self.attributes("-topmost", True)  # 최상단 고정
+#         self.transient(parent)             # 부모 창에 종속시킴 (항상 부모 위에 위치)
+        
+#         # 창이 완전히 생성된 후 이벤트를 독점하도록 설정
+#         self.wait_visibility()             # 창이 보일 때까지 대기
+#         self.grab_set()                    # 이 창을 닫기 전까지 부모 창 조작 불가 및 레이어 고정
+        
+#         self.resizable(False, False)
+        
+#         # UI 구성
+#         self.label = ctk.CTkLabel(self, text="오버레이 투명도", font=("Arial", 14, "bold"))
+#         self.label.pack(pady=(15, 0))
 
-        ctk.CTkLabel(input_frame, text="%").pack(side="left", padx=2)
+#         input_frame = ctk.CTkFrame(self, fg_color="transparent")
+#         input_frame.pack(pady=10, padx=20, fill="x")
 
-        # 하단 닫기 버튼 (모달 창이므로 명확한 종료 버튼이 있으면 편리합니다)
-        self.close_btn = ctk.CTkButton(self, text="확인", width=100, command=self.destroy)
-        self.close_btn.pack(pady=(0, 10))
+#         # 슬라이더 조절 (0.1 ~ 1.0)
+#         self.slider = ctk.CTkSlider(input_frame, from_=0.1, to=1.0, command=self.update_from_slider)
+#         self.slider.set(parent.current_alpha) 
+#         self.slider.pack(side="left", expand=True, padx=(0, 10))
 
-    def update_from_slider(self, value):
-        self.parent.set_transparency(value)
-        self.entry.delete(0, tk.END)
-        self.entry.insert(0, str(int(value * 100)))
+#         # 수치 직접 입력창
+#         self.entry = ctk.CTkEntry(input_frame, width=60, justify="center")
+#         self.entry.insert(0, str(int(parent.current_alpha * 100)))
+#         self.entry.pack(side="left")
+#         self.entry.bind("<Return>", self.update_from_entry)
 
-    def update_from_entry(self, event=None):
-        try:
-            val = int(self.entry.get())
-            if 10 <= val <= 100:
-                alpha = val / 100.0
-                self.parent.set_transparency(alpha)
-                self.slider.set(alpha)
-            else:
-                messagebox.showwarning("범위 오류", "10% ~ 100% 사이의 값을 입력해주세요.")
-        except ValueError:
-            messagebox.showerror("입력 오류", "숫자만 입력 가능합니다.")
+#         ctk.CTkLabel(input_frame, text="%").pack(side="left", padx=2)
 
-    def destroy(self):
-        """창을 닫을 때 grab_set 해제"""
-        self.grab_release()
-        super().destroy()
+#         # 하단 닫기 버튼 (모달 창이므로 명확한 종료 버튼이 있으면 편리합니다)
+#         self.close_btn = ctk.CTkButton(self, text="확인", width=100, command=self.destroy)
+#         self.close_btn.pack(pady=(0, 10))
+
+#     def update_from_slider(self, value):
+#         self.parent.set_transparency(value)
+#         self.entry.delete(0, tk.END)
+#         self.entry.insert(0, str(int(value * 100)))
+
+#     def update_from_entry(self, event=None):
+#         try:
+#             val = int(self.entry.get())
+#             if 10 <= val <= 100:
+#                 alpha = val / 100.0
+#                 self.parent.set_transparency(alpha)
+#                 self.slider.set(alpha)
+#             else:
+#                 messagebox.showwarning("범위 오류", "10% ~ 100% 사이의 값을 입력해주세요.")
+#         except ValueError:
+#             messagebox.showerror("입력 오류", "숫자만 입력 가능합니다.")
+
+#     def destroy(self):
+#         """창을 닫을 때 grab_set 해제"""
+#         self.grab_release()
+#         super().destroy()
 
 class ImageSelectionPopup(ctk.CTkToplevel):
     """개별 키 편집용 이미지 선택 팝업 - 검색 기능 및 전역 캐시 적용 버전"""
@@ -892,8 +972,8 @@ class FullKeyboardOverlay(ctk.CTk):
         self.current_mode = "full"
         # self.min_width_limit = 600
         # self.current_alpha = 0.85
-        self.current_alpha = 1.00
-        self.pre_edit_alpha = 1.00 
+        # self.current_alpha = 1.00
+        # self.pre_edit_alpha = 1.00 
         self.scale_factor = 1.0
         self.start_drag_x_root = 0
         self.start_drag_y_root = 0
@@ -938,7 +1018,7 @@ class FullKeyboardOverlay(ctk.CTk):
         
         self.geometry(f"{self.modes[self.current_mode]['w']}x{self.modes[self.current_mode]['h']}")
         self.attributes("-topmost", True)
-        self.attributes("-alpha", self.current_alpha) 
+        # self.attributes("-alpha", self.current_alpha) 
         # self.overrideredirect(True)                  
         self.configure(fg_color="#1a1a1a")      
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -953,13 +1033,18 @@ class FullKeyboardOverlay(ctk.CTk):
         self.bind("<FocusOut>", lambda e: None)
         
         self.use_transparent_bg = False
-        self.transparent_color = "#121212" # 투명으로 처리할 고유 색상
+        # self.transparent_color = "#121212" # 투명으로 처리할 고유 색상
         # 초기 배경 설정 적용
         if self.use_transparent_bg:
             self.configure(fg_color=self.transparent_color)
             self.attributes("-transparentcolor", self.transparent_color)
         else:
             self.configure(fg_color="#1a1a1a")
+        self.bg_color = config_data.get("bg_color", "#1a1a1a")
+        self.key_bg_color = config_data.get("key_bg_color", "#333333")
+        self.key_border_color = config_data.get("key_border_color", "#555555")
+        self.key_text_color = config_data.get("key_text_color", "white")
+        self.configure(fg_color=self.bg_color) # 로드된 배경색 적용
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=0)
         self.main_frame.pack(expand=True, fill="both")
         self.buttons = {}
@@ -1048,7 +1133,15 @@ class FullKeyboardOverlay(ctk.CTk):
 
     def save_config(self, filename=None):
         target = filename if filename else self.config_file
-        data = {"key_bindings": self.key_bindings, "game_path": self.game_path, "last_account": self.last_account}
+        data = {
+            "key_bindings": self.key_bindings, 
+            "game_path": self.game_path, 
+            "last_account": self.last_account,
+            "bg_color": self.bg_color,
+            "key_bg_color": self.key_bg_color,
+            "key_border_color": self.key_border_color,
+            "key_text_color": self.key_text_color # [추가]
+        }
         try:
             with open(target, "w", encoding="utf-8") as f: 
                 json.dump(data, f, ensure_ascii=False, indent=4)
@@ -1078,12 +1171,38 @@ class FullKeyboardOverlay(ctk.CTk):
         """배경 투명화 모드를 토글합니다."""
         self.use_transparent_bg = not self.use_transparent_bg
         if self.use_transparent_bg:
-            self.configure(fg_color=self.transparent_color)
-            self.attributes("-transparentcolor", self.transparent_color)
+            self.configure(fg_color=self.bg_color)
+            self.attributes("-transparentcolor", self.bg_color)
         else:
             self.attributes("-transparentcolor", "") # 투명 속성 제거
             self.configure(fg_color="#1a1a1a") # 원래 배경색 복구
         self.create_context_menu() # 메뉴 체크 표시 갱신
+
+    def change_window_color(self, color):
+        """윈도우 배경색 변경 및 저장"""
+        self.bg_color = color
+        self.configure(fg_color=color)
+
+    def change_key_color(self, color):
+        """모든 키 버튼의 색상 변경 및 저장"""
+        self.key_bg_color = color
+        for btn in self.buttons.values():
+            btn.configure(fg_color=color)
+
+    def change_key_border_color(self, color):
+        """모든 키 버튼의 테두리 색상 변경 및 저장"""
+        self.key_border_color = color
+        for btn in self.buttons.values():
+            btn.configure(border_color=color)
+
+    def change_key_text_color(self, color):
+        """[신규] 모든 키 버튼의 라벨(글자) 색상 변경 및 저장"""
+        self.key_text_color = color
+        for btn in self.buttons.values():
+            btn.configure(text_color=color)
+
+    def open_color_settings(self):
+        ColorSettings(self)
 
     def minimize_window(self):
         """프로그램을 최소화합니다."""
@@ -1110,7 +1229,8 @@ class FullKeyboardOverlay(ctk.CTk):
             img_menu.add_command(label="  인게임 설정으로 편집하기", command=lambda: AccountSelectionPopup(self, self.game_path))
             img_menu.add_command(label="  직접 편집하기", command=self.toggle_edit_mode)
             self.context_menu.add_cascade(label="  용병 아이콘 설정", menu=img_menu)
-            self.context_menu.add_command(label="  키보드 투명도 설정 열기", command=self.open_slider_window)
+            self.context_menu.add_command(label="  색상 테마 설정 열기", command=self.open_color_settings)
+            # self.context_menu.add_command(label="  키보드 투명도 설정 열기", command=self.open_slider_window)
             # self.context_menu.add_command(label="  모든 설정 완전 초기화", command=self.reset_all_settings)
             bg_trans_prefix = "• " if self.use_transparent_bg else "  "
             self.context_menu.add_command(label=f"{bg_trans_prefix}배경을 투명하게 표시", 
@@ -1129,9 +1249,9 @@ class FullKeyboardOverlay(ctk.CTk):
             self.context_menu.add_command(label="  최소화", command=self.minimize_window)
             self.context_menu.add_command(label="  종료", command=self.on_closing)
 
-    def open_slider_window(self):
-        """투명도 설정 팝업 열기"""
-        TransparencySettings(self)
+    # def open_slider_window(self):
+    #     """투명도 설정 팝업 열기"""
+    #     TransparencySettings(self)
 
     def reset_all_settings(self):
         """모든 키 바인딩 설정을 삭제하고 초기화합니다."""
@@ -1161,17 +1281,17 @@ class FullKeyboardOverlay(ctk.CTk):
             self.withdraw()
             self._update_window_style(False) # 타이틀 바 제거
             self.geometry(f"{mode['w']}x{mode['h']}")
-            self.set_transparency(self.pre_edit_alpha)
-            self.configure(fg_color="#1a1a1a")
+            # self.set_transparency(self.pre_edit_alpha)
+            self.configure(fg_color=self.bg_color)
             self.title("LostSaga KeyboardViewer")
             self.deiconify()
         else:
             # [일반 모드 종료 -> 편집 모드로]
             self.withdraw()
-            self.pre_edit_alpha = self.current_alpha
+            # self.pre_edit_alpha = self.current_alpha
             self._update_window_style(True)  # 타이틀 바 복구
             self.geometry(f"{mode['w']}x{mode['h'] + 40}")
-            self.set_transparency(1.0)
+            # self.set_transparency(1.0)
             self.configure(fg_color="#2a1a1a")
             self.title("직접 편집 모드 - 키를 클릭하여 수정하세요")
             self.deiconify()
@@ -1328,14 +1448,18 @@ class FullKeyboardOverlay(ctk.CTk):
 
         if filename and filename in self.image_cache:
             pil_img = self.image_cache[filename]
-            side = int(min(k_w, k_h) * 0.8) 
+            side = int(min(k_w, k_h) * 0.9) 
             img_obj = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(side, side))
             display_text = ""
         
         # 버튼 생성
         cmd = (lambda tid=target_id: ImageSelectionPopup(self, tid)) if self.edit_mode else None
         btn = ctk.CTkButton(parent, text=display_text, image=img_obj, width=k_w, height=k_h, 
-                            fg_color="#333333", text_color="white", command=cmd, hover=self.edit_mode)
+                            fg_color=self.key_bg_color, 
+                            border_width=2,
+                            border_color=self.key_border_color,
+                            text_color=self.key_text_color, # [여기 수정됨]
+                            command=cmd, hover=self.edit_mode)
         btn.grid(row=row, column=col, columnspan=columnspan, rowspan=rowspan, padx=1, pady=1, sticky="nsew")
         self.buttons[target_id] = btn
 
@@ -1431,7 +1555,7 @@ class FullKeyboardOverlay(ctk.CTk):
             self.create_key(m_frame, "Tab", 1, 0, width=s*1.5, columnspan=6, key_code="tab")
             for i, char in enumerate(["q","w","e","r","t","y","u","i","o","p","[","]"]):
                 self.create_key(m_frame, char.upper(), 1, 6 + (i * 4), columnspan=4, key_code=char)
-            self.create_key(m_frame, "\\", 1, 6 + (12 * 4), width=s*1.5, columnspan=6, key_code=char)
+            self.create_key(m_frame, "\\", 1, 6 + (12 * 4), width=s*1.5, columnspan=6, key_code="\\")
 
             # --- Row 2: Caps Lock열 (Caps=1.75u=7칸 / Enter=2.25u=9칸) ---
             # [수정] Caps Lock을 1.75u로 설정하여 7칸 차지
@@ -1490,10 +1614,10 @@ class FullKeyboardOverlay(ctk.CTk):
 
             if file_path:
                 # [추가] 현재 설정된 투명도 임시 저장
-                original_alpha = self.current_alpha
+                # original_alpha = self.current_alpha
                 
                 # [추가] 캡쳐를 위해 불투명 상태(100%)로 변경
-                self.set_transparency(1.0)
+                # self.set_transparency(1.0)
                 # 윈도우 속성 변경을 즉시 적용하기 위해 강제 업데이트
                 self.update() 
                 
@@ -1510,14 +1634,14 @@ class FullKeyboardOverlay(ctk.CTk):
                 captured_image.save(file_path)
                 
                 # [추가] 원래 설정했던 투명도로 자동 복구
-                self.set_transparency(original_alpha)
+                # self.set_transparency(original_alpha)
                 
                 messagebox.showinfo("캡쳐 성공", f"캡쳐 성공 : {default_filename} 파일이 저장되었습니다.")
                 
         except Exception as e:
             # 오류 발생 시에도 원래 투명도로 복구 시도
-            if 'original_alpha' in locals():
-                self.set_transparency(original_alpha)
+            # if 'original_alpha' in locals():
+                # self.set_transparency(original_alpha)
             messagebox.showerror("캡쳐 실패", f"저장 중 오류가 발생했습니다: {e}")
 
     def win32_filter(self, msg, data): self.last_is_extended = bool(data.flags & 0x01); return True
@@ -1526,7 +1650,7 @@ class FullKeyboardOverlay(ctk.CTk):
         if k in self.buttons: self.buttons[k].configure(fg_color="#1f538d")
     def on_release(self, key):
         k = self.parse_key(key)
-        if k in self.buttons: self.buttons[k].configure(fg_color="#333333")
+        if k in self.buttons: self.buttons[k].configure(fg_color=self.key_bg_color) # 설정된 색상으로 복구
     def parse_key(self, key):
         """[수정] 확장 키 플래그를 확인하여 일반 방향키와 넘패드 방향키를 정확히 구분합니다."""
         try:
@@ -1564,8 +1688,7 @@ class FullKeyboardOverlay(ctk.CTk):
             return k
         except: 
             return None
-    def open_slider_window(self): TransparencySettings(self)
-    def set_transparency(self, value): self.current_alpha = value; self.attributes("-alpha", value)
+    # def set_transparency(self, value): self.current_alpha = value; self.attributes("-alpha", value)
     def show_menu(self, event): self.create_context_menu(); self.context_menu.post(event.x_root, event.y_root)
 
 def get_lostsaga_key_name(vk_code_str):
