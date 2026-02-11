@@ -1199,12 +1199,17 @@ class FullKeyboardOverlay(ctk.CTk):
     def toggle_background_transparency(self):
         """배경 투명화 모드를 토글합니다."""
         self.use_transparent_bg = not self.use_transparent_bg
+        
         if self.use_transparent_bg:
+            # 현재 배경색을 그대로 윈도우 배경으로 설정하고, 그 색을 투명 처리(Chroma Key)합니다.
             self.configure(fg_color=self.bg_color)
             self.attributes("-transparentcolor", self.bg_color)
         else:
-            self.attributes("-transparentcolor", "") # 투명 속성 제거
-            self.configure(fg_color="#1a1a1a") # 원래 배경색 복구
+            # 투명 속성을 제거합니다.
+            self.attributes("-transparentcolor", "") 
+            # [수정] 하드코딩된 색상이 아니라, 현재 설정된 테마의 배경색(self.bg_color)으로 복구합니다.
+            self.configure(fg_color=self.bg_color) 
+            
         self.create_context_menu() # 메뉴 체크 표시 갱신
 
     def change_window_color(self, color):
@@ -1457,14 +1462,19 @@ class FullKeyboardOverlay(ctk.CTk):
             self.geometry(f"+{self.start_win_x + dx}+{self.start_win_y + dy}")
 
     def create_key(self, parent, text, row, col, width=None, height=None, columnspan=1, rowspan=1, key_code=None):
-        """[수정] Minimal 모드 시 방향키는 텍스트를, 나머지는 고정 이미지를 출력함"""
-        k_w = (width if width else self.base_key_size) * self.scale_factor
-        k_h = (height if height else self.base_key_size) * self.scale_factor
+        """[최종 수정] place 배치를 사용하여 버튼 크기 팽창을 완벽하게 차단합니다."""
+        
+        # 1. 크기 정수 변환
+        raw_w = (width if width else self.base_key_size) * self.scale_factor
+        raw_h = (height if height else self.base_key_size) * self.scale_factor
+        k_w = int(raw_w)
+        k_h = int(raw_h)
+
         target_id = key_code if key_code else text.lower()
         display_text = text
         img_obj = None
 
-        # [방향키 정의] 텍스트 출력을 강제할 키 목록
+        # [방향키 및 예외 처리 로직 (기존과 동일)]
         dir_keys = ["up", "down", "left", "right", "home", "end", "page_up", "page_down", "clear",
                     "numpad_0", "numpad_1", "numpad_2", "numpad_3", "numpad_4", "numpad_5", 
                     "numpad_6", "numpad_7", "numpad_8", "numpad_9"]
@@ -1472,20 +1482,15 @@ class FullKeyboardOverlay(ctk.CTk):
             "q": "basic_icon_trinket.png", "w": "basic_icon_helmet.png", "e": "basic_icon_armor.png", "r": "basic_icon_weapon.png",
             "a": "basic_icon_jump.png", "s": "basic_icon_guard.png", "d": "basic_icon_attack.png"
         }
-        # 바인딩 확인
         binding_val = self.key_bindings.get(target_id, "")
         
         filename = None
         if binding_val.startswith("DIR:"):
-            # 인게임 설정에 의해 방향키로 지정된 경우 화살표 출력
             display_text = binding_val.split(":")[1]
             filename = None
         elif self.current_mode.startswith("minimal"):
-            if target_id in dir_keys:
-                # 방향키는 이미지를 할당하지 않아 텍스트(↑ 등)가 출력됨
-                img_obj = None
-            elif target_id in minimal_fixed:
-                filename = minimal_fixed[target_id]
+            if target_id in dir_keys: img_obj = None
+            elif target_id in minimal_fixed: filename = minimal_fixed[target_id]
         elif target_id in self.key_bindings:
             filename = os.path.basename(self.key_bindings[target_id])
         elif binding_val:
@@ -1493,19 +1498,39 @@ class FullKeyboardOverlay(ctk.CTk):
 
         if filename and filename in self.image_cache:
             pil_img = self.image_cache[filename]
-            side = int(min(k_w, k_h) * 0.7) 
+            side = int(min(k_w, k_h) * 0.8) 
             img_obj = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(side, side))
             display_text = ""
         
-        # 버튼 생성
+        # =================================================================================
+        # [핵심] 1. 절대 크기를 가진 투명 컨테이너(감옥) 생성
+        # =================================================================================
+        container = ctk.CTkFrame(parent, width=k_w, height=k_h, fg_color="transparent")
+        
+        # 2. 자식이 부모 크기에 영향을 주지 못하도록 차단
+        container.grid_propagate(False)
+        container.pack_propagate(False)
+        
+        # 3. 컨테이너 배치 (여기는 grid 사용)
+        container.grid(row=row, column=col, columnspan=columnspan, rowspan=rowspan, padx=1, pady=1, sticky="nsew")
+
+        # =================================================================================
+        # [핵심] 4. 버튼을 place로 강제 배치 (부모 크기 무시)
+        # =================================================================================
         cmd = (lambda tid=target_id: ImageSelectionPopup(self, tid)) if self.edit_mode else None
-        btn = ctk.CTkButton(parent, text=display_text, image=img_obj, width=k_w, height=k_h, 
+        
+        btn = ctk.CTkButton(container, text=display_text, image=img_obj, 
+                            width=k_w, height=k_h, 
                             fg_color=self.key_bg_color, 
                             border_width=2,
+                            border_spacing=0,          # [추가] 내부 여백 0으로 설정
                             border_color=self.key_border_color,
-                            text_color=self.key_text_color, # [여기 수정됨]
+                            text_color=self.key_text_color,
                             command=cmd, hover=self.edit_mode)
-        btn.grid(row=row, column=col, columnspan=columnspan, rowspan=rowspan, padx=1, pady=1, sticky="nsew")
+        
+        # 5. relwidth=1, relheight=1 : 부모(컨테이너) 크기에 무조건 꽉 채움
+        btn.place(relx=0, rely=0, relwidth=1, relheight=1)
+        
         self.buttons[target_id] = btn
 
     def setup_layout(self):
