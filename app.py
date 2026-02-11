@@ -897,13 +897,12 @@ class FullKeyboardOverlay(ctk.CTk):
         self.scale_factor = 1.0
         self.start_drag_x_root = 0
         self.start_drag_y_root = 0
-        # self.resizing = False
+        self.resizing = False
         # self.resize_edge = None
         self.base_key_size = 42
         self.edit_mode = False
         self.always_on_top = True
         self.resizable(False, False)
-        # [수정] OS 측정을 믿지 말고, 우리가 정의한 모드 수치로 비율 고정
         mode = self.modes[self.current_mode]
         self.aspect_ratio = mode['w'] / mode['h']
         self.title("LostSaga KeyboardViewer")
@@ -946,7 +945,7 @@ class FullKeyboardOverlay(ctk.CTk):
         
         self.context_menu = None
         self.bind("<Button-3>", self.show_menu)
-        # self.bind("<Motion>", self.check_edge)
+        self.bind("<Motion>", self.check_edge)
         self.bind("<ButtonPress-1>", self.on_button_press)
         self.bind("<ButtonRelease-1>", self.on_button_release)
         self.bind("<B1-Motion>", self.handle_mouse_action)
@@ -1208,43 +1207,40 @@ class FullKeyboardOverlay(ctk.CTk):
         self.aspect_ratio = mode['w'] / mode['h']
         self.refresh_ui()
 
-    # def check_edge(self, event):
-    #     """[수정] 대각선 방향을 포함하여 리사이징 영역을 정밀하게 감지합니다."""
-    #     if self.resizing: return
+    def check_edge(self, event):
+        """[복구] 마우스 위치에 따른 리사이징 방향 감지 및 커서 변경"""
+        if self.resizing: return
         
-    #     # 마우스의 윈도우 상대 좌표 계산 (정밀도 향상)
-    #     x = self.winfo_pointerx() - self.winfo_rootx()
-    #     y = self.winfo_pointery() - self.winfo_rooty()
-    #     w, h = self.winfo_width(), self.winfo_height()
+        x = self.winfo_pointerx() - self.winfo_rootx()
+        y = self.winfo_pointery() - self.winfo_rooty()
+        w, h = self.winfo_width(), self.winfo_height()
         
-    #     margin = 20 # 감지 영역 확대
-    #     at_top, at_bottom = y < margin, y > h - margin
-    #     at_left, at_right = x < margin, x > w - margin
+        margin = 15 
+        at_top, at_bottom = y < margin, y > h - margin
+        at_left, at_right = x < margin, x > w - margin
         
-    #     # 대각선 감지 우선 순위 부여
-    #     if at_top and at_left: self.resize_edge = "nw"; self.config(cursor="size_nw_se")
-    #     elif at_top and at_right: self.resize_edge = "ne"; self.config(cursor="size_ne_sw")
-    #     elif at_bottom and at_left: self.resize_edge = "sw"; self.config(cursor="size_ne_sw")
-    #     elif at_bottom and at_right: self.resize_edge = "se"; self.config(cursor="size_nw_se")
-    #     elif at_top: self.resize_edge = "n"; self.config(cursor="size_ns")
-    #     elif at_bottom: self.resize_edge = "s"; self.config(cursor="size_ns")
-    #     elif at_left: self.resize_edge = "w"; self.config(cursor="size_we")
-    #     elif at_right: self.resize_edge = "e"; self.config(cursor="size_we")
-    #     else:
-    #         self.resize_edge = None
-    #         self.config(cursor="")
+        if at_top and at_left: self.resize_edge = "nw"; self.config(cursor="size_nw_se")
+        elif at_top and at_right: self.resize_edge = "ne"; self.config(cursor="size_ne_sw")
+        elif at_bottom and at_left: self.resize_edge = "sw"; self.config(cursor="size_ne_sw")
+        elif at_bottom and at_right: self.resize_edge = "se"; self.config(cursor="size_nw_se")
+        elif at_top: self.resize_edge = "n"; self.config(cursor="size_ns")
+        elif at_bottom: self.resize_edge = "s"; self.config(cursor="size_ns")
+        elif at_left: self.resize_edge = "w"; self.config(cursor="size_we")
+        elif at_right: self.resize_edge = "e"; self.config(cursor="size_we")
+        else:
+            self.resize_edge = None
+            self.config(cursor="")
 
     def _update_window_style(self, show_caption=False):
-        """[수정] 리사이징 테두리(WS_THICKFRAME) 비트를 제거하여 크기를 고정합니다."""
+        """[수정] 리사이징 테두리(WS_THICKFRAME)를 다시 활성화합니다."""
         hwnd = ctypes.windll.user32.GetParent(self.winfo_id())
         
         if show_caption:
-            # 0x00040000 (WS_THICKFRAME)을 제거하여 타이틀 바만 표시되게 합니다.
-            new_style = ctypes.windll.user32.GetWindowLongW(hwnd, -16) | 0x00C00000 
-            # 0x00040000 비트를 명시적으로 끄고 싶다면 아래와 같이 작성합니다.
-            new_style &= ~0x00040000
+            # WS_CAPTION(0x00C00000)과 WS_THICKFRAME(0x00040000) 모두 활성화
+            new_style = ctypes.windll.user32.GetWindowLongW(hwnd, -16) | 0x00C00000 | 0x00040000
         else:
-            new_style = 0x80000000 # WS_POPUP
+            # 일반 모드에서도 리사이징이 가능하도록 WS_POPUP과 WS_THICKFRAME 조합
+            new_style = 0x80000000 | 0x00040000
             
         ctypes.windll.user32.SetWindowLongW(hwnd, -16, new_style)
         ctypes.windll.user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0020 | 0x0002 | 0x0001 | 0x0004)
@@ -1257,21 +1253,43 @@ class FullKeyboardOverlay(ctk.CTk):
         self.main_frame.configure(border_color="#1a1a1a")
 
     def on_button_press(self, event):
-        # [수정] 리사이징 체크 없이 바로 드래그 시작 좌표 저장
-        self.start_drag_x_root = event.x_root
-        self.start_drag_y_root = event.y_root
-        self.start_win_x = self.winfo_x()
-        self.start_win_y = self.winfo_y()
+        # [수정] 리사이징 시작 여부 판단 추가
+        if self.resize_edge:
+            self.resizing = True
+            self.start_x_root, self.start_y_root = event.x_root, event.y_root
+            self.start_geom = (self.winfo_x(), self.winfo_y(), self.winfo_width(), self.winfo_height())
+        else:
+            self.start_drag_x_root = event.x_root
+            self.start_drag_y_root = event.y_root
+            self.start_win_x = self.winfo_x()
+            self.start_win_y = self.winfo_y()
 
     def on_button_release(self, event):
-        # [수정] 아무 내용도 남기지 않거나 필요 시 간단한 로직만 유지
-        pass
+        self.resizing = False # 리사이징 종료 시 상태만 리셋
 
     def handle_mouse_action(self, event):
-        # [수정] 리사이징 로직을 완전히 제거하고 '창 이동'만 수행
-        dx = event.x_root - self.start_drag_x_root
-        dy = event.y_root - self.start_drag_y_root
-        self.geometry(f"+{self.start_win_x + dx}+{self.start_win_y + dy}")
+        """[수정] 리사이징 시 내부 크기는 무시하고 창 크기만 조절합니다."""
+        if self.resizing:
+            orig_x, orig_y, orig_w, orig_h = self.start_geom
+            dx = event.x_root - self.start_x_root
+            dy = event.y_root - self.start_y_root
+            
+            new_w = orig_w + (dx if "e" in self.resize_edge else -dx if "w" in self.resize_edge else 0)
+            new_h = orig_h + (dy if "s" in self.resize_edge else -dy if "n" in self.resize_edge else 0)
+            
+            # 최소 크기 제한 (키보드가 하나도 안 보일 정도는 아니게)
+            new_w = max(100, new_w)
+            new_h = max(50, new_h)
+            
+            new_x = orig_x + (orig_w - new_w) if "w" in self.resize_edge else orig_x
+            new_y = orig_y + (orig_h - new_h) if "n" in self.resize_edge else orig_y
+            
+            # [중요] refresh_ui를 호출하지 않고 창 크기만 변경합니다.
+            self.geometry(f"{int(new_w)}x{int(new_h)}+{int(new_x)}+{int(new_y)}")
+        else:
+            dx = event.x_root - self.start_drag_x_root
+            dy = event.y_root - self.start_drag_y_root
+            self.geometry(f"+{self.start_win_x + dx}+{self.start_win_y + dy}")
 
     def create_key(self, parent, text, row, col, width=None, height=None, columnspan=1, rowspan=1, key_code=None):
         """[수정] Minimal 모드 시 방향키는 텍스트를, 나머지는 고정 이미지를 출력함"""
