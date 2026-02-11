@@ -652,7 +652,6 @@ class InGameKeyConfigPopup(ctk.CTkToplevel):
                 self.parent.key_bindings[key_name] = f"DIR:{dir_symbols[ini_key]}"
         
         self.parent.refresh_ui()
-        self.parent.save_config()
 
     def setup_soldier_slots(self):
         """하단 스크롤 영역에 1~50번 용병 슬롯을 배치합니다."""
@@ -1140,7 +1139,7 @@ class FullKeyboardOverlay(ctk.CTk):
             "bg_color": self.bg_color,
             "key_bg_color": self.key_bg_color,
             "key_border_color": self.key_border_color,
-            "key_text_color": self.key_text_color # [추가]
+            "key_text_color": self.key_text_color 
         }
         try:
             with open(target, "w", encoding="utf-8") as f: 
@@ -1448,7 +1447,7 @@ class FullKeyboardOverlay(ctk.CTk):
 
         if filename and filename in self.image_cache:
             pil_img = self.image_cache[filename]
-            side = int(min(k_w, k_h) * 0.9) 
+            side = int(min(k_w, k_h) * 0.7) 
             img_obj = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(side, side))
             display_text = ""
         
