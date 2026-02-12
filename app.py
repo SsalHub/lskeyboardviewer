@@ -1009,7 +1009,7 @@ class FullKeyboardOverlay(ctk.CTk):
         self.base_key_size = 42
         self.edit_mode = False
         self.always_on_top = True
-        self.resizable(False, False)
+        self.resizable(True, True)
         mode = self.modes[self.current_mode]
         self.aspect_ratio = mode['w'] / mode['h']
         self.title("LostSaga KeyboardViewer")
