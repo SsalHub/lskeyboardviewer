@@ -8,6 +8,7 @@ import json
 import configparser
 import sys
 import ctypes  # Win32 API 호출을 위해 추가
+import version
 
 BASIC_ICON_MAP = {
     "ATTACK": "basic_icon_attack.png",
@@ -37,25 +38,43 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 class KeyCapturePopup(ctk.CTkToplevel):
-    """키 입력을 대기하고 감지된 키의 VK 코드를 반환하는 팝업"""
-    def __init__(self, parent, ini_key, display_name, callback):
+    # [수정] current_key_display 인자 추가
+    def __init__(self, parent, ini_key, display_name, callback, current_key_display=None):
         super().__init__(parent)
         self.parent = parent
         self.ini_key = ini_key
         self.callback = callback
         
         self.title("키 입력 대기")
-        self.geometry("300x120")
+        self.geometry("300x150")
         self.attributes("-topmost", True)
         self.transient(parent)
         self.grab_set()
         
-        # 중앙 라벨 설정
-        self.label = ctk.CTkLabel(self, text=f"[{display_name}]에 해당하는\n키를 눌러주세요.", 
-                                  font=("Arial", 14, "bold"))
+        # [신규] 현재 설정된 키 값 결정 로직
+        current_setting_text = ""
+        
+        if current_key_display:
+            # 1. 외부에서 직접 전달받은 텍스트가 있으면 최우선 사용 (Minimal 모드용)
+            current_setting_text = current_key_display.upper()
+            
+        elif hasattr(parent, 'minimal_key_map'): 
+            # 2. 전달받은 게 없으면 맵에서 조회 (기존 fallback)
+            mapped_key = parent.minimal_key_map.get(ini_key, ini_key)
+            current_setting_text = mapped_key.upper()
+            
+        elif hasattr(parent, 'all_key_data'):
+            # 3. 인게임 설정 팝업용
+            raw_val = parent.all_key_data.get(ini_key, "0")
+            current_setting_text = get_lostsaga_key_name(raw_val).upper()
+
+        label_text = f"[{display_name}]에 해당하는\n키를 눌러주세요."
+        if current_setting_text:
+            label_text += f"\n\n(현재 설정: {current_setting_text})"
+
+        self.label = ctk.CTkLabel(self, text=label_text, font=("Arial", 14, "bold"))
         self.label.pack(expand=True)
         
-        # pynput을 사용하여 시스템 레벨의 VK 코드를 정확히 포착
         self.listener = keyboard.Listener(on_press=self.on_key_press)
         self.listener.start()
 
@@ -242,6 +261,42 @@ class ColorSettings(ctk.CTkToplevel):
 #         """창을 닫을 때 grab_set 해제"""
 #         self.grab_release()
 #         super().destroy()
+
+class AboutPopup(ctk.CTkToplevel):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("프로그램 정보 (About)")
+        self.geometry("400x320")
+        self.attributes("-topmost", True)
+        self.transient(parent)
+        self.grab_set()
+        self.resizable(False, False)
+        
+        # 1. 프로그램 제목 및 버전 (version.VERSION 변수 사용)
+        ctk.CTkLabel(self, text="LostSaga Keyboard Viewer", font=("Arial", 18, "bold")).pack(pady=(25, 5))
+        
+        # [수정] version.py에서 가져온 버전 정보를 출력
+        ctk.CTkLabel(self, text=f"Version {version.VERSION}", font=("Arial", 12), text_color="#aaaaaa").pack(pady=(0, 15))
+        # 3. 제작자 정보 (version.AUTHOR 변수 사용)
+        info_frame = ctk.CTkFrame(self, fg_color="transparent")
+        info_frame.pack(pady=10)
+        ctk.CTkLabel(info_frame, text="Developed by: ", font=("Arial", 12, "bold")).grid(row=0, column=0, sticky="e")
+        ctk.CTkLabel(info_frame, text=version.AUTHOR, font=("Arial", 12)).grid(row=0, column=1, sticky="w")
+        
+        # 4. [핵심] 저작권 및 면책 조항 (법적 보호용)
+        disclaimer_text = (
+            "본 프로그램은 로스트사가 유저를 위한 비영리 팬 툴입니다.\n"
+            "이 프로그램에 포함된 게임 내 이미지 및 아이콘의\n"
+            "모든 저작권은 (주)밸로프 및 원작자에게 있습니다.\n\n"
+            "This software is a non-profit fan tool.\n"
+            "All game images and icons used in this software\n"
+            "belong to VALOFE Co., Ltd. and the original creators."
+        )
+        ctk.CTkLabel(self, text=disclaimer_text, font=("Arial", 11), text_color="#999999", 
+                     justify="center").pack(pady=15)
+        
+        # 5. 닫기 버튼
+        ctk.CTkButton(self, text="닫기", width=100, command=self.destroy).pack(side="bottom", pady=20)
 
 class ImageSelectionPopup(ctk.CTkToplevel):
     """개별 키 편집용 이미지 선택 팝업 - 검색 기능 및 전역 캐시 적용 버전"""
@@ -1072,6 +1127,7 @@ class FullKeyboardOverlay(ctk.CTk):
         self.key_border_color = config_data.get("key_border_color", "#555555")
         self.key_text_color = config_data.get("key_text_color", "white")
         self.key_pressed_color = config_data.get("key_pressed_color", "#aaaaaa")
+        self.minimal_key_map = config_data.get("minimal_key_map", {})
         self.configure(fg_color=self.bg_color) # 로드된 배경색 적용
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=0)
         self.main_frame.pack(expand=True, fill="both")
@@ -1169,7 +1225,9 @@ class FullKeyboardOverlay(ctk.CTk):
             "key_bg_color": self.key_bg_color,
             "key_border_color": self.key_border_color,
             "key_text_color": self.key_text_color,
-            "key_pressed_color": self.key_pressed_color
+            "key_pressed_color": self.key_pressed_color,
+            "key_pressed_color": self.key_pressed_color,
+            "minimal_key_map": self.minimal_key_map
         }
         try:
             with open(target, "w", encoding="utf-8") as f: 
@@ -1244,6 +1302,30 @@ class FullKeyboardOverlay(ctk.CTk):
         self.key_pressed_color = color
         self.save_config()
 
+    def update_minimal_key_binding(self, slot_key, vk_str):
+        """[신규] Minimal 모드에서 슬롯에 할당된 물리 키를 변경하고 저장합니다."""
+        # 1. 입력받은 VK 코드를 읽기 편한 키 이름으로 변환 (예: 65 -> 'a')
+        new_real_key = get_lostsaga_key_name(vk_str).lower()
+        
+        # 2. 매핑 정보 업데이트 (예: 'q' 슬롯 -> 'a' 키)
+        self.minimal_key_map[slot_key] = new_real_key
+        
+        # 3. 저장 및 새로고침
+        self.save_config()
+        self.refresh_ui()
+        
+        print(f"Minimal Key Map Updated: Slot [{slot_key.upper()}] -> Real Key [{new_real_key.upper()}]")
+
+    def open_minimal_key_popup(self, slot_key, default_key):
+        """[신규] Minimal 모드 팝업 오픈 헬퍼: 현재 설정된 실제 키(Real Key)를 계산하여 팝업에 전달"""
+        # 현재 매핑된 키가 있으면 가져오고, 없으면 버튼 생성 시 지정한 default_key(예: numpad_4)를 사용
+        current_real_key = self.minimal_key_map.get(slot_key, default_key)
+        
+        # 팝업 생성 시 current_key_display 인자에 실제 키 이름을 전달
+        KeyCapturePopup(self, slot_key, f"키 변경 ({slot_key.upper()})", 
+                        self.update_minimal_key_binding, 
+                        current_key_display=current_real_key)
+
     def open_color_settings(self):
         ColorSettings(self)
 
@@ -1299,7 +1381,8 @@ class FullKeyboardOverlay(ctk.CTk):
             self.context_menu.add_command(label=f"{save_prefix}다른 이름으로 설정 저장", command=self.save_config_as)
             self.context_menu.add_command(label="  기존 설정 파일 불러오기", command=self.load_config_from_file)
             self.context_menu.add_separator()
-            # [추가] 윈도우 제어 옵션
+            self.context_menu.add_command(label="  프로그램 정보 (About)...", command=self.open_about)
+            self.context_menu.add_separator()
             self.context_menu.add_command(label="  최소화", command=self.minimize_window)
             self.context_menu.add_command(label="  종료", command=self.on_closing)
 
@@ -1475,6 +1558,7 @@ class FullKeyboardOverlay(ctk.CTk):
         k_h = int(raw_h)
 
         target_id = key_code if key_code else text.lower()
+        original_slot = text.lower()
         display_text = text
         img_obj = None
 
@@ -1494,7 +1578,9 @@ class FullKeyboardOverlay(ctk.CTk):
             filename = None
         elif self.current_mode.startswith("minimal"):
             if target_id in dir_keys: img_obj = None
-            elif target_id in minimal_fixed: filename = minimal_fixed[target_id]
+            # [핵심] 키가 매핑되어 바뀌었더라도, 아이콘은 원래 'Q' 자리에 맞는 걸 가져옴
+            elif original_slot in minimal_fixed: 
+                filename = minimal_fixed[original_slot]
         elif target_id in self.key_bindings:
             filename = os.path.basename(self.key_bindings[target_id])
         elif binding_val:
@@ -1521,7 +1607,15 @@ class FullKeyboardOverlay(ctk.CTk):
         # =================================================================================
         # [핵심] 4. 버튼을 place로 강제 배치 (부모 크기 무시)
         # =================================================================================
-        cmd = (lambda tid=target_id: ImageSelectionPopup(self, tid)) if self.edit_mode else None
+        cmd = None
+        if self.edit_mode:
+            if self.current_mode.startswith("minimal"):
+                # original_slot: 화면에 보이는 키 이름 (예: "←")
+                # target_id: 실제 동작하는 기본 키 코드 (예: "numpad_4")
+                # 이 두 값을 헬퍼 함수에 전달합니다.
+                cmd = lambda s=original_slot, d=target_id: self.open_minimal_key_popup(s, d)
+            else:
+                cmd = lambda tid=target_id: ImageSelectionPopup(self, tid)
         
         btn = ctk.CTkButton(container, text=display_text, image=img_obj, 
                             width=k_w, height=k_h, 
@@ -1557,9 +1651,14 @@ class FullKeyboardOverlay(ctk.CTk):
             
             # QWER / ASD 배치 로직
             for i, char in enumerate(["q", "w", "e", "r"]):
-                self.create_key(left_frame, char.upper(), 0, i * 2, columnspan=2, key_code=char)
+                # map.get('q', 'q') -> 설정값이 있으면 가져오고 없으면 'q' 사용
+                real_key = self.minimal_key_map.get(char, char)
+                # text는 화면 표시용(원래 키), key_code는 실제 입력 감지용
+                self.create_key(left_frame, char.upper(), 0, i * 2, columnspan=2, key_code=real_key)
+            # ASD 배치
             for i, char in enumerate(["a", "s", "d"]):
-                self.create_key(left_frame, char.upper(), 1, i * 2 + 1, columnspan=2, key_code=char)
+                real_key = self.minimal_key_map.get(char, char)
+                self.create_key(left_frame, char.upper(), 1, i * 2 + 1, columnspan=2, key_code=real_key)
                 
             # 2. 방향키 영역
             arrow_frame = ctk.CTkFrame(center_container, fg_color="transparent")
@@ -1745,7 +1844,8 @@ class FullKeyboardOverlay(ctk.CTk):
             # if 'original_alpha' in locals():
                 # self.set_transparency(original_alpha)
             messagebox.showerror("캡쳐 실패", f"저장 중 오류가 발생했습니다: {e}")
-
+    
+    def open_about(self): AboutPopup(self)
     def win32_filter(self, msg, data): self.last_is_extended = bool(data.flags & 0x01); return True
     def on_press(self, key):
         k = self.parse_key(key)
