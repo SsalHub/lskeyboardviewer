@@ -1213,9 +1213,13 @@ class FullKeyboardOverlay(ctk.CTk):
         self.create_context_menu() # 메뉴 체크 표시 갱신
 
     def change_window_color(self, color):
-        """윈도우 배경색 변경 및 저장"""
+        """[수정] 윈도우 배경색 변경 시 투명도 유지"""
         self.bg_color = color
         self.configure(fg_color=color)
+        
+        # 투명 모드일 경우 투명 기준 색상 동기화
+        if self.use_transparent_bg:
+            self.attributes("-transparentcolor", color)
 
     def change_key_color(self, color):
         """모든 키 버튼의 색상 변경 및 저장"""
@@ -1668,7 +1672,7 @@ class FullKeyboardOverlay(ctk.CTk):
                 self.create_key(t_frame, "0", 4, 0, width=s*2, columnspan=2, key_code="numpad_0"); self.create_key(t_frame, ".", 4, 2, key_code="numpad_dot"); self.create_key(t_frame, "+", 1, 3, height=s*2, rowspan=2, key_code="numpad_add"); self.create_key(t_frame, "Ent", 3, 3, height=s*2, rowspan=2, key_code="numpad_enter")
 
     def apply_preset_theme(self, theme_name):
-        """[신규] 프리셋 테마를 적용하고 저장합니다."""
+        """[수정] 테마 변경 시 현재의 투명화 상태를 유지하도록 로직 보완"""
         if theme_name not in self.PRESET_THEMES: return
 
         theme = self.PRESET_THEMES[theme_name]
@@ -1683,7 +1687,11 @@ class FullKeyboardOverlay(ctk.CTk):
         # 2. 윈도우 배경색 적용
         self.configure(fg_color=self.bg_color)
 
-        # 3. 모든 키 버튼의 속성 즉시 변경 (재생성 없이 속성만 변경하여 성능 최적화)
+        # [핵심 수정] 만약 투명 모드가 켜져 있다면, 투명 기준 색상(Chroma Key)도 새 배경색으로 즉시 변경
+        if self.use_transparent_bg:
+            self.attributes("-transparentcolor", self.bg_color)
+
+        # 3. 모든 키 버튼의 속성 즉시 변경
         for btn in self.buttons.values():
             btn.configure(
                 fg_color=self.key_bg_color,
