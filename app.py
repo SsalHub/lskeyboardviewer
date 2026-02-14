@@ -10,6 +10,7 @@ import sys
 import ctypes  # Win32 API 호출을 위해 추가
 import version
 import queue
+import copy
 
 BASIC_ICON_MAP = {
     "ATTACK": "basic_icon_attack.png",
@@ -1191,6 +1192,7 @@ class FullKeyboardOverlay(ctk.CTk):
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=0)
         self.main_frame.pack(expand=True, fill="both")
         self.buttons = {}
+        self.saved_config_state = copy.deepcopy(self.get_current_config_state())
         self.create_context_menu()
         self.setup_layout()
         # [핵심] 윈도우 배치를 완료한 뒤 정확한 비율을 계산합니다.
@@ -1296,9 +1298,9 @@ class FullKeyboardOverlay(ctk.CTk):
             # 편집 모드 해제 후 바로 종료되지 않게 하려면 여기서 return을 하거나 
             # 아래 저장 확인 로직으로 넘어가도록 구성합니다.
 
-        # 2. 저장되지 않은 내용 확인
-        if self.key_bindings != self.saved_bindings:
-            if not messagebox.askyesno("종료 확인", "변경사항이 저장되지 않았습니다.\n종료하시겠습니까?"):
+        current_state = self.get_current_config_state()
+        if current_state != self.saved_config_state:
+            if not messagebox.askyesno("종료 확인", "변경사항이 저장되지 않았습니다.\n(키 설정, 색상, 옵션 등)\n\n종료하시겠습니까?"):
                 return
         
         # 3. [핵심] 키보드 리스너 쓰레드를 명시적으로 정지
@@ -1322,12 +1324,33 @@ class FullKeyboardOverlay(ctk.CTk):
             try:
                 with open(filename, "r", encoding="utf-8") as f:
                     new_data = json.load(f)
+                    # 설정 값들 적용
                     self.key_bindings = new_data.get("key_bindings", {})
+                    self.bg_color = new_data.get("bg_color", "#1a1a1a")
+                    self.key_bg_color = new_data.get("key_bg_color", "#333333")
+                    self.key_border_color = new_data.get("key_border_color", "#555555")
+                    self.key_text_color = new_data.get("key_text_color", "white")
+                    self.key_pressed_color = new_data.get("key_pressed_color", "#aaaaaa")
+                    self.minimal_key_map = new_data.get("minimal_key_map", {})
+                    self.use_transparent_bg = new_data.get("use_transparent_bg", False)
+                    self.always_on_top = new_data.get("always_on_top", True)
+
+                    # UI 및 속성 즉시 반영
+                    self.configure(fg_color=self.bg_color)
+                    self.attributes("-topmost", self.always_on_top)
+                    if self.use_transparent_bg:
+                         self.attributes("-transparentcolor", self.bg_color)
+                    else:
+                         self.attributes("-transparentcolor", "")
+                    
                     self.config_file = filename 
-                    self.saved_bindings = self.key_bindings.copy()
-                    self.refresh_ui(); self.create_context_menu() 
-                    # messagebox.showinfo("불러오기 완료", f"'{os.path.basename(filename)}' 파일을 불러왔습니다.")
-            except: messagebox.showerror("오류", "파일을 불러오는 중 오류가 발생했습니다.")
+                    self.refresh_ui()
+                    
+                    # [수정] 불러온 상태를 기준점으로 설정
+                    self.saved_config_state = copy.deepcopy(self.get_current_config_state())
+                    self.create_context_menu() 
+            except Exception as e: 
+                messagebox.showerror("오류", f"파일을 불러오는 중 오류가 발생했습니다: {e}")
 
     def update_last_account(self, account_name):
         self.last_account = account_name
@@ -1340,28 +1363,22 @@ class FullKeyboardOverlay(ctk.CTk):
 
     def save_config(self, filename=None):
         target = filename if filename else self.config_file
-        data = {
-            "key_bindings": self.key_bindings, 
-            "bg_color": self.bg_color,
-            "key_bg_color": self.key_bg_color,
-            "key_border_color": self.key_border_color,
-            "key_text_color": self.key_text_color,
-            "key_pressed_color": self.key_pressed_color,
-            "minimal_key_map": self.minimal_key_map,
-            
-            # [신규] 상태 저장 변수 추가
-            "use_transparent_bg": self.use_transparent_bg,
-            "always_on_top": self.always_on_top
-        }
+        # [수정] get_current_config_state()를 사용하여 데이터 생성 (코드 중복 제거)
+        data = self.get_current_config_state()
+        
         try:
             with open(target, "w", encoding="utf-8") as f: 
                 json.dump(data, f, ensure_ascii=False, indent=4)
-            self.saved_bindings = self.key_bindings.copy()
+            
+            # [수정] 저장 성공 시 현재 상태를 기준점으로 갱신
+            self.saved_config_state = copy.deepcopy(data)
+            
             self.config_file = target 
             messagebox.showinfo("저장 완료", f"'{os.path.basename(target)}'에 저장을 완료했습니다.")
             self.create_context_menu() 
             return True
-        except: return False
+        except Exception as e: 
+            return False
 
     def save_config_as(self):
         filename = filedialog.asksaveasfilename(initialdir=os.getcwd(), defaultextension=".json", filetypes=[("JSON files", "*.json")])
@@ -1369,8 +1386,29 @@ class FullKeyboardOverlay(ctk.CTk):
         return False
 
     def revert_changes(self):
-        if messagebox.askyesno("변경사항 초기화", "저장되지 않은 변경사항을 취소하시겠습니까?"):
-            self.key_bindings = self.saved_bindings.copy(); self.refresh_ui()
+        if messagebox.askyesno("변경사항 초기화", "저장되지 않은 변경사항을 취소하시겠습니까?\n(색상, 투명도 등 모든 설정이 마지막 저장 상태로 복구됩니다.)"):
+            # [수정] 저장된 상태(saved_config_state)에서 값을 꺼내와 복구
+            state = self.saved_config_state
+            self.key_bindings = copy.deepcopy(state["key_bindings"])
+            self.bg_color = state["bg_color"]
+            self.key_bg_color = state["key_bg_color"]
+            self.key_border_color = state["key_border_color"]
+            self.key_text_color = state["key_text_color"]
+            self.key_pressed_color = state["key_pressed_color"]
+            self.minimal_key_map = copy.deepcopy(state["minimal_key_map"])
+            self.use_transparent_bg = state["use_transparent_bg"]
+            self.always_on_top = state["always_on_top"]
+            
+            # UI 및 윈도우 속성 복구 적용
+            self.configure(fg_color=self.bg_color)
+            self.attributes("-topmost", self.always_on_top)
+            if self.use_transparent_bg:
+                self.attributes("-transparentcolor", self.bg_color)
+            else:
+                self.attributes("-transparentcolor", "")
+
+            self.refresh_ui()
+            self.create_context_menu()
 
     def toggle_always_on_top(self):
         """항상 위 표시 모드를 토글합니다."""
@@ -1460,8 +1498,10 @@ class FullKeyboardOverlay(ctk.CTk):
     def create_context_menu(self):
         if self.context_menu: self.context_menu.destroy()
         self.context_menu = tk.Menu(self, tearoff=0, bg="#2b2b2b", fg="white", activebackground="#1f538d", borderwidth=0)
-        has_changes = (self.key_bindings != self.saved_bindings)
+        current_state = self.get_current_config_state()
+        has_changes = (current_state != self.saved_config_state)
         save_prefix = "* " if has_changes else "  "
+        fname = os.path.basename(self.config_file)
         fname = os.path.basename(self.config_file)
 
         layout_menu = tk.Menu(self.context_menu, tearoff=0, bg="#2b2b2b", fg="white", activebackground="#1f538d")
@@ -1950,6 +1990,20 @@ class FullKeyboardOverlay(ctk.CTk):
                 border_color=self.key_border_color,
                 text_color=self.key_text_color
             )
+
+    def get_current_config_state(self):
+        """[신규] 현재 프로그램의 모든 설정 상태를 딕셔너리로 반환합니다."""
+        return {
+            "key_bindings": self.key_bindings,
+            "bg_color": self.bg_color,
+            "key_bg_color": self.key_bg_color,
+            "key_border_color": self.key_border_color,
+            "key_text_color": self.key_text_color,
+            "key_pressed_color": self.key_pressed_color,
+            "minimal_key_map": self.minimal_key_map,
+            "use_transparent_bg": self.use_transparent_bg,
+            "always_on_top": self.always_on_top
+        }
 
     def capture_current_state(self):
         """[수정] 캡쳐 시 배경 투명화를 강제로 해제하여 선명한 이미지를 저장하고 복구합니다."""
