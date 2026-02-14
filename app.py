@@ -1168,9 +1168,13 @@ class FullKeyboardOverlay(ctk.CTk):
         self.bind("<FocusIn>", lambda e: None)
         self.bind("<FocusOut>", lambda e: None)
         
-        self.use_transparent_bg = False
         # self.transparent_color = "#121212" # 투명으로 처리할 고유 색상
+        self.always_on_top = config_data.get("always_on_top", False)
+        self.attributes("-topmost", self.always_on_top)
+        # [신규] 배경 투명화 설정 로드 및 적용 (기본값: False)
+        self.use_transparent_bg = config_data.get("use_transparent_bg", False)
         # 초기 배경 설정 적용
+        self.use_transparent_bg = False
         if self.use_transparent_bg:
             self.configure(fg_color=self.transparent_color)
             self.attributes("-transparentcolor", self.transparent_color)
@@ -1182,6 +1186,7 @@ class FullKeyboardOverlay(ctk.CTk):
         self.key_text_color = config_data.get("key_text_color", "white")
         self.key_pressed_color = config_data.get("key_pressed_color", "#aaaaaa")
         self.minimal_key_map = config_data.get("minimal_key_map", {})
+        
         self.configure(fg_color=self.bg_color) # 로드된 배경색 적용
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=0)
         self.main_frame.pack(expand=True, fill="both")
@@ -1337,15 +1342,16 @@ class FullKeyboardOverlay(ctk.CTk):
         target = filename if filename else self.config_file
         data = {
             "key_bindings": self.key_bindings, 
-            # "game_path": self.game_path, 
-            # "last_account": self.last_account,
             "bg_color": self.bg_color,
             "key_bg_color": self.key_bg_color,
             "key_border_color": self.key_border_color,
             "key_text_color": self.key_text_color,
             "key_pressed_color": self.key_pressed_color,
-            "key_pressed_color": self.key_pressed_color,
-            "minimal_key_map": self.minimal_key_map
+            "minimal_key_map": self.minimal_key_map,
+            
+            # [신규] 상태 저장 변수 추가
+            "use_transparent_bg": self.use_transparent_bg,
+            "always_on_top": self.always_on_top
         }
         try:
             with open(target, "w", encoding="utf-8") as f: 
@@ -1946,13 +1952,13 @@ class FullKeyboardOverlay(ctk.CTk):
             )
 
     def capture_current_state(self):
-        """[수정] 캡쳐 순간에만 투명도를 100%로 고정하여 선명한 이미지를 저장합니다."""
+        """[수정] 캡쳐 시 배경 투명화를 강제로 해제하여 선명한 이미지를 저장하고 복구합니다."""
         try:
             # 1. 기본 파일명 생성 (현재 설정 파일명 기준)
-            base_name = os.path.splitext(os.path.basename(self.config_file))[0]
-            default_filename = f"{base_name}.png"
+            # base_name = os.path.splitext(os.path.basename(self.config_file))[0]
+            default_filename = f"keyboard_capture.png"
 
-            # 2. 저장 경로 선택 (경로가 결정되기 전까지는 투명도 유지)
+            # 2. 저장 경로 선택
             file_path = filedialog.asksaveasfilename(
                 initialfile=default_filename,
                 defaultextension=".png",
@@ -1961,35 +1967,37 @@ class FullKeyboardOverlay(ctk.CTk):
             )
 
             if file_path:
-                # [추가] 현재 설정된 투명도 임시 저장
-                # original_alpha = self.current_alpha
+                # [핵심] 현재 투명화 설정 상태 저장
+                was_transparent = self.use_transparent_bg
                 
-                # [추가] 캡쳐를 위해 불투명 상태(100%)로 변경
-                # self.set_transparency(1.0)
-                # 윈도우 속성 변경을 즉시 적용하기 위해 강제 업데이트
-                self.update() 
+                # 3. 캡쳐를 위해 강제로 불투명 모드로 전환
+                if was_transparent:
+                    self.attributes("-transparentcolor", "") # 투명 속성 제거
+                    self.configure(fg_color=self.bg_color)   # 배경색 복구
+                    self.update() # 변경 사항 즉시 반영 (필수)
                 
-                # 3. 윈도우 영역 계산 및 캡쳐 실행
-                self.update_idletasks()
+                # 4. 윈도우 영역 계산 및 캡쳐 실행
+                # update()를 호출했으므로 윈도우가 불투명한 상태로 캡쳐됨
                 x = self.winfo_rootx()
                 y = self.winfo_rooty()
                 w = self.winfo_width()
                 h = self.winfo_height()
                 bbox = (x, y, x + w, y + h)
 
-                # 실제 화면 캡쳐
                 captured_image = ImageGrab.grab(bbox=bbox)
                 captured_image.save(file_path)
                 
-                # [추가] 원래 설정했던 투명도로 자동 복구
-                # self.set_transparency(original_alpha)
+                # 5. 원래 설정으로 복구
+                if was_transparent:
+                    self.attributes("-transparentcolor", self.bg_color)
+                    self.update()
                 
-                messagebox.showinfo("캡쳐 성공", f"캡쳐 성공 : {default_filename} 파일이 저장되었습니다.")
+                messagebox.showinfo("캡쳐 성공", f"저장 완료: {os.path.basename(file_path)}")
                 
         except Exception as e:
-            # 오류 발생 시에도 원래 투명도로 복구 시도
-            # if 'original_alpha' in locals():
-                # self.set_transparency(original_alpha)
+            # 오류 발생 시에도 설정 복구 시도
+            if 'was_transparent' in locals() and was_transparent:
+                 self.attributes("-transparentcolor", self.bg_color)
             messagebox.showerror("캡쳐 실패", f"저장 중 오류가 발생했습니다: {e}")
 
     def process_input_queue(self):
