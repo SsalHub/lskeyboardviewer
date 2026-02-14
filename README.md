@@ -32,51 +32,36 @@
 ## ✨ 주요 기능
 
 ### 1. 실시간 입력 시각화 및 멀티 레이아웃
-<img width="1024" height="319" alt="Image" src="https://github.com/user-attachments/assets/87fa92af-df90-4fcb-8803-e78293f2f084" />
+<img width="1002" height="281" alt="02  키보드 레이아웃 설정" src="https://github.com/user-attachments/assets/27ccfba8-f857-4f8f-b6c2-2f91e66167b8" />
 
 * **풀 배열**, **텐키리스**, 그리고 화면을 적게 차지하는 **미니멀** 모드를 지원합니다.
 * 60칸 그리드 시스템을 적용하여 실제 키보드와 유사한 정밀한 키 배치를 제공합니다.
 
+### 2. 직관적인 용병 아이콘 배치 설정
 
-### 2. 인게임 설정을 연동하여 편리한 키뷰어 세팅
-<img width="1034" height="318" alt="Image" src="https://github.com/user-attachments/assets/1bf78d72-f4f2-4774-9672-f9438d14a11b" />
+<img width="997" height="289" alt="04  직접 편집하기" src="https://github.com/user-attachments/assets/dc477ef0-d644-4443-8386-f397ef2ebf66" />
 
-* 인게임 용병 슬롯과 같은 레이아웃에서 편리하게 세팅을 진행해 보세요.
-  
-<img width="400" height="auto" alt="Image" src="https://github.com/user-attachments/assets/52ee5321-a3ee-45c6-b7c5-1dd2294ac3d9" />
-
-<img width="400" height="auto" alt="Image" src="https://github.com/user-attachments/assets/e7a608ce-5c93-45b2-a287-967fe2ac27ba" />
-
-* 위처럼 인게임의 용병 슬롯 상태를 그대로 참고하여 세팅하시면 됩니다.
-
-### 3. 직접 편집 모드 제공
-
-<img width="1036" height="320" alt="Image" src="https://github.com/user-attachments/assets/4e94059a-7840-4572-a301-bca0b5da7e55" />
-
-* 또는 직접 편집 모드를 활용하여 키보드 자판을 섬세하게 편집할 수 있습니다.
-
-
-### 4. 나만의 캐릭터 아이콘 커스터마이징
+* 직접 편집 모드를 활용하여 키보드 자판을 섬세하게 편집할 수 있습니다.
 
 <img width="474" height="752" alt="Image" src="https://github.com/user-attachments/assets/c5b04ef7-1f66-47a9-a0f1-043156839194" />
 
 * **검색 기능**: 수많은 아이콘 중 번호, 이름, 초성 검색을 통해 원하는 이미지를 빠르게 찾을 수 있습니다.
 
-### 5. 키뷰어 커스텀 설정 캡쳐
+### 4. 키뷰어 커스텀 설정 캡쳐
 
-<img width="1024" height="317" alt="Image" src="https://github.com/user-attachments/assets/684467f3-5361-40f2-b159-3a00cb5601f8" />
+<img width="1005" height="283" alt="09  키뷰어 화면 캡쳐 및 저장" src="https://github.com/user-attachments/assets/2aa79999-a834-499b-b5f8-c99a9c6f7d7d" />
 
 * 현재 구성한 키뷰어 상태를 선명한 **PNG 이미지**로 저장할 수 있습니다.
 * 자신의 키 세팅을 다른 유저와 공유할 수 있습니다.
 
-### 6. 사용자 편의성 극대화
+### 5. 사용자 편의성 극대화
 
+<img width="1010" height="289" alt="07  설정 저장하기" src="https://github.com/user-attachments/assets/161669ce-a5c7-4e11-8180-a854ce905fea" />
 * **설정 저장 및 불러오기**: 나만의 커스텀 설정을 PC에 저장하고, 언제든지 불러올 수 있습니다.
 * 만약 설정이 마음에 들지 않을 경우, 설정 초기화 버튼을 통해 초기 상태로 되돌릴 수 있습니다.
-* 
-<img width="1033" height="327" alt="Image" src="https://github.com/user-attachments/assets/529f13c7-a483-46a3-adca-d852221698b0" />
 
-
+  <img width="999" height="279" alt="11  배경 투명화" src="https://github.com/user-attachments/assets/9ef74902-4ad0-4531-b91c-8d38ba335fd5" />
+* **배경을 투명하게 표시**: 키보드 배경을 투명하게 설정함으로서 녹화/라이브 시 더욱 깔끔하게 키뷰어를 노출시킬 수 있습니다.
 
 ---
 
