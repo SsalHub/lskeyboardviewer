@@ -57,10 +57,12 @@
 ### 5. 사용자 편의성 극대화
 
 <img width="1010" height="289" alt="07  설정 저장하기" src="https://github.com/user-attachments/assets/161669ce-a5c7-4e11-8180-a854ce905fea" />
+
 * **설정 저장 및 불러오기**: 나만의 커스텀 설정을 PC에 저장하고, 언제든지 불러올 수 있습니다.
 * 만약 설정이 마음에 들지 않을 경우, 설정 초기화 버튼을 통해 초기 상태로 되돌릴 수 있습니다.
 
   <img width="999" height="279" alt="11  배경 투명화" src="https://github.com/user-attachments/assets/9ef74902-4ad0-4531-b91c-8d38ba335fd5" />
+  
 * **배경을 투명하게 표시**: 키보드 배경을 투명하게 설정함으로서 녹화/라이브 시 더욱 깔끔하게 키뷰어를 노출시킬 수 있습니다.
 
 ---
