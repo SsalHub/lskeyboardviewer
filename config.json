@@ -3,10 +3,13 @@
         "d": "./resource/img/basic_icon_attack.png",
         "s": "./resource/img/basic_icon_guard.png",
         "a": "./resource/img/basic_icon_jump.png",
-        "x": "./resource/img/basic_icon_trinket.png",
-        "q": "./resource/img/basic_icon_helmet.png",
-        "c": "./resource/img/basic_icon_armor.png",
-        "f": "./resource/img/basic_icon_weapon.png"
+        "x": "",
+        "q": "D:\\programming\\python\\workspace\\lskeyboardviewer\\./resource/img/basic_icon_trinket.png",
+        "c": "",
+        "f": "",
+        "w": "D:\\programming\\python\\workspace\\lskeyboardviewer\\./resource/img/basic_icon_helmet.png",
+        "e": "D:\\programming\\python\\workspace\\lskeyboardviewer\\./resource/img/basic_icon_armor.png",
+        "r": "D:\\programming\\python\\workspace\\lskeyboardviewer\\./resource/img/basic_icon_weapon.png"
     },
     "bg_color": "#1a1a1a",
     "key_bg_color": "#333333",

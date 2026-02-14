@@ -48,7 +48,7 @@ VSVersionInfo(
 def build():
     create_version_info()
 
-    print("? ���� ����...")
+    print("building start...")
     
     PyInstaller.__main__.run([
         'app.py',                       
@@ -65,7 +65,7 @@ def build():
     if os.path.exists("version_info.txt"):
         os.remove("version_info.txt")
         
-    print("\n? build complete! check out '.\\dist'.")
+    print("\n build complete! check out '.\\dist'.")
 
 if __name__ == "__main__":
     build()

@@ -9,6 +9,7 @@ import configparser
 import sys
 import ctypes  # Win32 API 호출을 위해 추가
 import version
+import queue
 
 BASIC_ICON_MAP = {
     "ATTACK": "basic_icon_attack.png",
@@ -454,7 +455,9 @@ class ImageSelectionPopup(ctk.CTkToplevel):
     def select_image(self, full_path):
         """[수정] 중복 바인딩 체크 및 스틸(Steal) 기능 구현"""
         selected_filename = os.path.basename(full_path)
-        target_key = self.target_key # 현재 내가 편집 중인 키 (예: 'q')
+        
+        # [수정] self.target_key 대신 self.key_id를 사용해야 합니다.
+        target_key = self.key_id 
         
         # 1. [동일 키 체크] 현재 키에 이미 같은 이미지가 설정되어 있는지 확인
         current_binding = self.parent.key_bindings.get(target_key)
@@ -482,22 +485,34 @@ class ImageSelectionPopup(ctk.CTkToplevel):
             )
             
             if confirm:
-                # 기존 키의 바인딩 제거 (None으로 설정하거나 딕셔너리에서 삭제)
-                # 여기서는 빈 문자열("")로 설정하여 이미지 해제
+                # 기존 키의 바인딩 제거
                 self.parent.key_bindings[duplicate_key] = ""
                 # 해당 버튼의 이미지 즉시 제거 (UI 갱신)
                 if duplicate_key in self.parent.buttons:
-                     self.parent.buttons[duplicate_key].configure(image=None, text=self.parent.get_key_display_text(duplicate_key))
+                     self.parent.buttons[duplicate_key].configure(image=None, text=self.parent.buttons[duplicate_key].cget("text"))
             else:
                 # 취소하면 아무것도 하지 않음
                 return
 
         # 4. 최종 적용 (공통)
         self.parent.key_bindings[target_key] = full_path
-        self.parent.save_config()
-        self.parent.refresh_ui() # 전체 UI 새로고침 (흑백 처리 갱신 등을 위해)
+        # self.parent.save_config()
+        self.parent.refresh_ui() # 전체 UI 새로고침
         
         self.destroy() # 팝업 닫기
+
+    def remove_binding(self):
+        """[신규] 현재 키에 설정된 이미지를 제거하고 텍스트 모드로 복귀합니다."""
+        # 1. 키 바인딩 딕셔너리에서 현재 키 삭제
+        if self.key_id in self.parent.key_bindings:
+            del self.parent.key_bindings[self.key_id]
+        
+        # 3. UI 새로고침 (이미지가 사라지고 텍스트가 나옴)
+        self.parent.refresh_ui()
+        
+        # 4. 팝업 닫기
+        self.destroy()
+
 
 class ImageGalleryPopup(ctk.CTkToplevel):
     """용병 슬롯 전용 이미지 갤러리 팝업 - InGameKeyConfigPopup 컬러톤 매칭 버전"""
@@ -1064,6 +1079,8 @@ class FullKeyboardOverlay(ctk.CTk):
         self.config_file = config_path 
         self.image_cache = {}  # 파일명: 리사이즈된 PIL.Image 객체
         self.char_data = {}    # data.json 파싱 데이터
+        self.input_queue = queue.Queue()
+        self.pressed_keys_state = set() # 현재 눌려있는 키를 기록 (중복 입력 방지용)
         
         # 1. 프로그램 실행 시 리소스 미리 불러오기
         # self.preload_resources()
@@ -1097,7 +1114,7 @@ class FullKeyboardOverlay(ctk.CTk):
         self.start_drag_x_root = 0
         self.start_drag_y_root = 0
         self.resizing = False
-        # self.resize_edge = None
+        self.resize_edge = None
         self.base_key_size = 42
         self.edit_mode = False
         self.always_on_top = True
@@ -1175,6 +1192,7 @@ class FullKeyboardOverlay(ctk.CTk):
         self.update_idletasks()
         # self.aspect_ratio = self.winfo_width() / self.winfo_height()
         
+        self.process_input_queue()
         self.listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release, win32_event_filter=self.win32_filter)
         self.listener.daemon = True 
         self.listener.start()
@@ -1819,7 +1837,7 @@ class FullKeyboardOverlay(ctk.CTk):
             f_frame.grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 10))
             
             self.create_key(f_frame, "Esc", 0, 0, width=s, columnspan=4)
-            ctk.CTkLabel(f_frame, text="", width=s * 1.0).grid(row=0, column=4, columnspan=4)
+            ctk.CTkLabel(f_frame, text="", width=s * 0.65).grid(row=0, column=4, columnspan=4)
             for i in range(1, 5): self.create_key(f_frame, f"F{i}", 0, 4 + (i * 4), width=s, columnspan=4)
             ctk.CTkLabel(f_frame, text="", width=s * 0.65).grid(row=0, column=24, columnspan=2)
             for i in range(5, 9): self.create_key(f_frame, f"F{i}", 0, 26 + ((i-5) * 4), width=s, columnspan=4)
@@ -1897,8 +1915,7 @@ class FullKeyboardOverlay(ctk.CTk):
         final_w = req_w + pad_x
         final_h = req_h + pad_y
         self.geometry(f"{final_w}x{final_h}")
-        
-        print(f"Auto-fit applied: {final_w}x{final_h}")
+        # print(f"Auto-fit applied: {final_w}x{final_h}")
     
     def apply_preset_theme(self, theme_name):
         """[수정] 테마 변경 시 현재의 투명화 상태를 유지하도록 로직 보완"""
@@ -1974,16 +1991,51 @@ class FullKeyboardOverlay(ctk.CTk):
             # if 'original_alpha' in locals():
                 # self.set_transparency(original_alpha)
             messagebox.showerror("캡쳐 실패", f"저장 중 오류가 발생했습니다: {e}")
+
+    def process_input_queue(self):
+        """[최적화 핵심] 메인 스레드에서 큐에 쌓인 키 이벤트를 안전하게 처리합니다."""
+        try:
+            # 큐에 쌓인 이벤트가 없을 때까지 반복 처리 (한 번에 털어내기)
+            while True:
+                # 큐에서 데이터를 꺼냄 (데이터가 없으면 Empty 에러 발생하여 루프 종료)
+                event_type, key_id = self.input_queue.get_nowait()
+                
+                if event_type == "press":
+                    # [중요] 이미 눌린 상태라면 UI 업데이트를 건너뜀 (윈도우 키 반복 입력 부하 방지)
+                    if key_id not in self.pressed_keys_state:
+                        self.pressed_keys_state.add(key_id)
+                        if key_id in self.buttons:
+                            # 실제 UI 색상 변경
+                            self.buttons[key_id].configure(fg_color=self.key_pressed_color)
+                            
+                elif event_type == "release":
+                    # 눌린 상태 기록 해제
+                    if key_id in self.pressed_keys_state:
+                        self.pressed_keys_state.remove(key_id)
+                    
+                    if key_id in self.buttons:
+                        # 실제 UI 색상 복구
+                        self.buttons[key_id].configure(fg_color=self.key_bg_color)
+                        
+        except queue.Empty:
+            pass
+        
+        # 5ms 후에 다시 이 함수를 실행 (무한 반복)
+        # 1ms는 너무 빠르고, 10ms는 60fps 게임에서 미세하게 늦을 수 있으므로 5ms 권장
+        self.after(5, self.process_input_queue)
     
     def open_about(self): AboutPopup(self)
     def win32_filter(self, msg, data): self.last_is_extended = bool(data.flags & 0x01); return True
     def on_press(self, key):
+        """[최적화] UI를 직접 건드리지 않고 큐에 'press' 이벤트만 넣습니다."""
         k = self.parse_key(key)
-        if k in self.buttons: 
-            self.buttons[k].configure(fg_color=self.key_pressed_color)
+        if k:
+            self.input_queue.put(("press", k))
     def on_release(self, key):
+        """[최적화] UI를 직접 건드리지 않고 큐에 'release' 이벤트만 넣습니다."""
         k = self.parse_key(key)
-        if k in self.buttons: self.buttons[k].configure(fg_color=self.key_bg_color) # 설정된 색상으로 복구
+        if k:
+            self.input_queue.put(("release", k))
     def parse_key(self, key):
         """[수정] 확장 키 플래그를 확인하여 일반 방향키와 넘패드 방향키를 정확히 구분합니다."""
         try:
