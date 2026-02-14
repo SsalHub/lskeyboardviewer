@@ -1178,6 +1178,7 @@ class FullKeyboardOverlay(ctk.CTk):
         self.listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release, win32_event_filter=self.win32_filter)
         self.listener.daemon = True 
         self.listener.start()
+        self.refresh_ui()
     
     # def preload_resources(self):
     #     """[핵심] 디스크 부하를 줄이기 위해 모든 이미지와 데이터를 메모리에 적재"""
@@ -1564,14 +1565,17 @@ class FullKeyboardOverlay(ctk.CTk):
         for widget in self.main_frame.winfo_children(): widget.destroy()
         self.buttons = {}
         self.setup_layout()
+        self.resize_to_fit()
 
     def switch_layout(self, mode_key):
         self.current_mode = mode_key
-        mode = self.modes[mode_key]
-        self.geometry(f"{mode['w']}x{mode['h']}")
-        # self.scale_factor = 1.0
+        # mode = self.modes[mode_key]  <-- 필요 없음
+        
+        # [수정] 고정 크기 적용 코드 제거 (refresh_ui 내부의 resize_to_fit이 처리함)
+        # self.geometry(f"{mode['w']}x{mode['h']}") 
+        
         self.update_idletasks()
-        self.aspect_ratio = mode['w'] / mode['h']
+        # self.aspect_ratio = mode['w'] / mode['h'] <-- 자동 계산되므로 생략 가능
         self.refresh_ui()
 
     def reset_to_original_size(self):
@@ -1768,34 +1772,29 @@ class FullKeyboardOverlay(ctk.CTk):
     def setup_layout(self):
         s = self.base_key_size
         
-        # 1. 메인 프레임의 행/열 가중치를 설정하여 중앙 정렬 기반 마련
         self.main_frame.grid_rowconfigure(0, weight=1)
         self.main_frame.grid_columnconfigure(0, weight=1)
-        # 2. 모든 키보드 요소를 담을 중앙 컨테이너 생성
-        # sticky="" 설정을 통해 이 컨테이너 자체가 창의 정중앙에 위치함
-        center_container = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        center_container.grid(row=0, column=0, sticky="")
-        
-        # [추가] 상하 중앙 정렬을 위해 0번 행에 가중치를 부여합니다.
         self.main_frame.grid_rowconfigure(0, weight=1)
 
+        # 3. 빈 컬럼 확장 방지
+        for c in range(3): self.main_frame.grid_columnconfigure(c, weight=0)
+
+        # [수정] 변수명 변경: center_container -> self.center_container
+        self.center_container = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        self.center_container.grid(row=0, column=0, sticky="")
+        
         if self.current_mode.startswith("minimal"):
-            left_frame = ctk.CTkFrame(center_container, fg_color="transparent")
+            left_frame = ctk.CTkFrame(self.center_container, fg_color="transparent") # self. 추가
             left_frame.pack(side="left", padx=10)
             
-            # QWER / ASD 배치 로직
             for i, char in enumerate(["q", "w", "e", "r"]):
-                # map.get('q', 'q') -> 설정값이 있으면 가져오고 없으면 'q' 사용
                 real_key = self.minimal_key_map.get(char, char)
-                # text는 화면 표시용(원래 키), key_code는 실제 입력 감지용
                 self.create_key(left_frame, char.upper(), 0, i * 2, columnspan=2, key_code=real_key)
-            # ASD 배치
             for i, char in enumerate(["a", "s", "d"]):
                 real_key = self.minimal_key_map.get(char, char)
                 self.create_key(left_frame, char.upper(), 1, i * 2 + 1, columnspan=2, key_code=real_key)
                 
-            # 2. 방향키 영역
-            arrow_frame = ctk.CTkFrame(center_container, fg_color="transparent")
+            arrow_frame = ctk.CTkFrame(self.center_container, fg_color="transparent") # self. 추가
             arrow_frame.pack(side="left", padx=10)
 
             if self.current_mode == "minimal_tkl":
@@ -1815,71 +1814,46 @@ class FullKeyboardOverlay(ctk.CTk):
                 self.create_key(arrow_frame, ".", 2, 1, key_code="numpad_2")
                 self.create_key(arrow_frame, "↘", 2, 2, key_code="numpad_3")
         else:
-            # content_cols = 3 if self.current_mode == "full" else 2
-            # self.main_frame.grid_columnconfigure(0, weight=1); self.main_frame.grid_columnconfigure(content_cols + 1, weight=1)
-            # self.main_frame.grid_rowconfigure(0, weight=1); self.main_frame.grid_rowconfigure(3, weight=1)
-            # [수정] 빈 컬럼에 weight를 주는 대신, 실제 데이터가 들어가는 컬럼들이 확장되도록 설정
-            for c in range(3): self.main_frame.grid_columnconfigure(c, weight=0)
-
             # 펑션 키 프레임
-            f_frame = ctk.CTkFrame(center_container, fg_color="transparent")
-            f_frame.grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 10))# 1. Esc (4칸)
+            f_frame = ctk.CTkFrame(self.center_container, fg_color="transparent") # self. 추가
+            f_frame.grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 10))
+            
             self.create_key(f_frame, "Esc", 0, 0, width=s, columnspan=4)
-
-            # 2. 여백 1: Esc와 F1 사이 (4칸)
-            # [수정] 너비를 s * 1.0에서 1.2 정도로 미세하게 늘림
             ctk.CTkLabel(f_frame, text="", width=s * 1.0).grid(row=0, column=4, columnspan=4)
-
-            # 3. F1 ~ F4 (16칸)
-            for i in range(1, 5):
-                self.create_key(f_frame, f"F{i}", 0, 4 + (i * 4), width=s, columnspan=4)
-
-            # 4. 여백 2: F4와 F5 사이 (2칸)
-            # [수정] 너비를 s * 0.5에서 0.65 정도로 미세하게 늘림
+            for i in range(1, 5): self.create_key(f_frame, f"F{i}", 0, 4 + (i * 4), width=s, columnspan=4)
             ctk.CTkLabel(f_frame, text="", width=s * 0.65).grid(row=0, column=24, columnspan=2)
-
-            # 5. F5 ~ F8 (16칸)
-            for i in range(5, 9):
-                self.create_key(f_frame, f"F{i}", 0, 26 + ((i-5) * 4), width=s, columnspan=4)
-
-            # 6. 여백 3: F8과 F9 사이 (2칸)
-            # [수정] 너비를 s * 0.5에서 0.65 정도로 미세하게 늘림
+            for i in range(5, 9): self.create_key(f_frame, f"F{i}", 0, 26 + ((i-5) * 4), width=s, columnspan=4)
             ctk.CTkLabel(f_frame, text="", width=s * 0.65).grid(row=0, column=42, columnspan=2)
-
-            # 7. F9 ~ F12 (16칸)
-            for i in range(9, 13):
-                self.create_key(f_frame, f"F{i}", 0, 44 + ((i-9) * 4), width=s, columnspan=4)
+            for i in range(9, 13): self.create_key(f_frame, f"F{i}", 0, 44 + ((i-9) * 4), width=s, columnspan=4)
             
             # 메인 키 프레임
-            m_frame = ctk.CTkFrame(center_container, fg_color="transparent")
+            m_frame = ctk.CTkFrame(self.center_container, fg_color="transparent") # self. 추가
             m_frame.grid(row=1, column=0, sticky="nw")
-            # --- Row 0: 숫자열 (1키=4칸 기준, 총 60칸) ---
+            
+            # Row 0
             for i, char in enumerate(["`","1","2","3","4","5","6","7","8","9","0","-","="]):
                 self.create_key(m_frame, char, 0, i * 4, columnspan=4)
             self.create_key(m_frame, "Back", 0, 52, width=s*2, columnspan=8, key_code="backspace")
 
-            # --- Row 1: QWERTY열 (Tab=1.5u=6칸) ---
+            # Row 1
             self.create_key(m_frame, "Tab", 1, 0, width=s*1.5, columnspan=6, key_code="tab")
             for i, char in enumerate(["q","w","e","r","t","y","u","i","o","p","[","]"]):
                 self.create_key(m_frame, char.upper(), 1, 6 + (i * 4), columnspan=4, key_code=char)
             self.create_key(m_frame, "\\", 1, 6 + (12 * 4), width=s*1.5, columnspan=6, key_code="\\")
 
-            # --- Row 2: Caps Lock열 (Caps=1.75u=7칸 / Enter=2.25u=9칸) ---
-            # [수정] Caps Lock을 1.75u로 설정하여 7칸 차지
+            # Row 2
             self.create_key(m_frame, "Caps", 2, 0, width=s*1.75, columnspan=7, key_code="caps_lock")
             for i, char in enumerate(["a","s","d","f","g","h","j","k","l",";","'"]):
                 self.create_key(m_frame, char.upper(), 2, 7 + (i * 4), columnspan=4, key_code=char)
             self.create_key(m_frame, "Enter", 2, 51, width=s*2.25, columnspan=9, key_code="enter")
 
-            # --- Row 3: Shift열 (L-Shift=2.25u=9칸 / R-Shift=2.25u=9칸) ---
-            # [수정] Left Shift를 2.25u로 설정 (Caps Lock보다 0.5u 김)
+            # Row 3
             self.create_key(m_frame, "Shift", 3, 0, width=s*2.25, columnspan=9, key_code="shift")
             for i, char in enumerate(["z","x","c","v","b","n","m",",",".","/"]):
                 self.create_key(m_frame, char.upper(), 3, 9 + (i * 4), columnspan=4, key_code=char)
-            # [수정] Right Shift도 동일하게 2.25u로 설정
             self.create_key(m_frame, "Shift ", 3, 49, width=s*2.25, columnspan=11, key_code="shift_r")
 
-            # --- Row 4: 하단 조작열 (1.25u~1.5u 기준 배치) ---
+            # Row 4
             self.create_key(m_frame, "Ctrl", 4, 0, width=s*1.25, columnspan=5, key_code="ctrl_l")
             self.create_key(m_frame, "Win", 4, 5, width=s*1.25, columnspan=5, key_code="cmd")
             self.create_key(m_frame, "Alt", 4, 10, width=s*1.25, columnspan=5, key_code="alt_l")
@@ -1888,22 +1862,44 @@ class FullKeyboardOverlay(ctk.CTk):
             self.create_key(m_frame, "Ctx", 4, 50, width=s*1.25, columnspan=5, key_code="menu")
             self.create_key(m_frame, "Ctrl", 4, 55, width=s*1.25, columnspan=5, key_code="ctrl_r")
 
-            # Numpad
-            # 넘패드 및 기타 프레임들도 순차적으로 column 번호 조정
-            # 방향키/인서트 프레임
-            n_frame = ctk.CTkFrame(center_container, fg_color="transparent")
+            # Numpad & Others
+            n_frame = ctk.CTkFrame(self.center_container, fg_color="transparent") # self. 추가
             n_frame.grid(row=1, column=1, sticky="n", padx=15)
             for r, row in enumerate([["insert", "home", "page_up"], ["delete", "end", "page_down"]]):
                 for c, k in enumerate(row): self.create_key(n_frame, k[:3].upper(), r, c, key_code=k)
             a_frame = ctk.CTkFrame(n_frame, fg_color="transparent"); a_frame.grid(row=2, column=0, columnspan=3, pady=(s*self.scale_factor, 0))
             self.create_key(a_frame, "↑", 0, 1, key_code="up"); self.create_key(a_frame, "←", 1, 0, key_code="left"); self.create_key(a_frame, "↓", 1, 1, key_code="down"); self.create_key(a_frame, "→", 1, 2, key_code="right")
+            
             if self.current_mode == "full":
-                t_frame = ctk.CTkFrame(center_container, fg_color="transparent")
+                t_frame = ctk.CTkFrame(self.center_container, fg_color="transparent") # self. 추가
                 t_frame.grid(row=1, column=2, sticky="nw")
                 for r, row in enumerate([[("NL","num_lock"),("/","numpad_div"),("*","numpad_mul"),("-","numpad_sub")],[("7","numpad_7"),("8","numpad_8"),("9","numpad_9")],[("4","numpad_4"),("5","numpad_5"),("6","numpad_6")],[("1","numpad_1"),("2","numpad_2"),("3","numpad_3")]]):
                     for c, (txt, kid) in enumerate(row): self.create_key(t_frame, txt, r, c, key_code=kid)
                 self.create_key(t_frame, "0", 4, 0, width=s*2, columnspan=2, key_code="numpad_0"); self.create_key(t_frame, ".", 4, 2, key_code="numpad_dot"); self.create_key(t_frame, "+", 1, 3, height=s*2, rowspan=2, key_code="numpad_add"); self.create_key(t_frame, "Ent", 3, 3, height=s*2, rowspan=2, key_code="numpad_enter")
 
+    def resize_to_fit(self):
+        """[신규] 키보드 컨텐츠 크기에 딱 맞춰 윈도우 크기를 조절합니다."""
+        if not hasattr(self, 'center_container') or not self.center_container.winfo_exists():
+            return
+
+        # 위젯들이 자리를 잡을 때까지 잠시 대기 (정확한 크기 계산을 위해 필수)
+        self.update_idletasks()
+        
+        # 내부 컨텐츠의 실제 요청 크기 구하기
+        req_w = self.center_container.winfo_reqwidth()
+        req_h = self.center_container.winfo_reqheight()
+        
+        # 최소한의 여백 (딱 붙으면 답답해 보일 수 있으니 10px 정도 여유)
+        pad_x = 10 
+        pad_y = 10
+        
+        # 계산된 크기로 윈도우 사이즈 적용
+        final_w = req_w + pad_x
+        final_h = req_h + pad_y
+        self.geometry(f"{final_w}x{final_h}")
+        
+        print(f"Auto-fit applied: {final_w}x{final_h}")
+    
     def apply_preset_theme(self, theme_name):
         """[수정] 테마 변경 시 현재의 투명화 상태를 유지하도록 로직 보완"""
         if theme_name not in self.PRESET_THEMES: return
