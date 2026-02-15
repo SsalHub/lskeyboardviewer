@@ -54,7 +54,7 @@ def build():
         'app.py',                       
         '--noconsole',                 
         '--onefile',                    
-        '--runtime-tmpdir=.',           
+        # '--runtime-tmpdir=.',           
         '--version-file=version_info.txt', 
         '--add-data=resource;resource', 
         '--name=LSKeyboardViewer',     

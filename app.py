@@ -515,192 +515,192 @@ class ImageSelectionPopup(ctk.CTkToplevel):
         self.destroy()
 
 
-class ImageGalleryPopup(ctk.CTkToplevel):
-    """용병 슬롯 전용 이미지 갤러리 팝업 - InGameKeyConfigPopup 컬러톤 매칭 버전"""
-    # 이미지 객체를 저장할 클래스 레벨 캐시
-    _image_cache = {}
+# class ImageGalleryPopup(ctk.CTkToplevel):
+#     """용병 슬롯 전용 이미지 갤러리 팝업 - InGameKeyConfigPopup 컬러톤 매칭 버전"""
+#     # 이미지 객체를 저장할 클래스 레벨 캐시
+#     _image_cache = {}
 
-    def __init__(self, parent, target_slot_key, callback):
-        super().__init__(parent)
-        self.parent = parent
-        self.target_slot_key = target_slot_key
-        self.callback = callback 
-        self.title("캐릭터 검색 및 선택")
-        self.geometry("480x750") 
+#     def __init__(self, parent, target_slot_key, callback):
+#         super().__init__(parent)
+#         self.parent = parent
+#         self.target_slot_key = target_slot_key
+#         self.callback = callback 
+#         self.title("캐릭터 검색 및 선택")
+#         self.geometry("480x750") 
         
-        # 디자인 매치: #E7E7E7 배경 및 파란색 헤더
-        self.configure(fg_color="#E7E7E7")
-        self.attributes("-topmost", True)
-        self.transient(parent)
-        self.grab_set()
+#         # 디자인 매치: #E7E7E7 배경 및 파란색 헤더
+#         self.configure(fg_color="#E7E7E7")
+#         self.attributes("-topmost", True)
+#         self.transient(parent)
+#         self.grab_set()
 
-        self.resource_path = resource_path("./resource/img/")
-        self.json_path = "./resource/data.json"
-        self.char_data = self.load_char_data()
-        self.thumbnail_buttons = {} 
+#         self.resource_path = resource_path("./resource/img/")
+#         self.json_path = "./resource/data.json"
+#         self.char_data = self.load_char_data()
+#         self.thumbnail_buttons = {} 
 
-        # 상단 헤더 바 (#2770CB)
-        self.header_bar = ctk.CTkFrame(self, height=50, fg_color="#2770CB", corner_radius=10)
-        self.header_bar.pack(side="top", fill="x", padx=15, pady=(15, 5))
-        self.header_label = ctk.CTkLabel(self.header_bar, text="캐릭터 검색 및 선택", 
-                                         font=("Arial", 16, "bold"), text_color="white")
-        self.header_label.place(relx=0.5, rely=0.5, anchor="center")
+#         # 상단 헤더 바 (#2770CB)
+#         self.header_bar = ctk.CTkFrame(self, height=50, fg_color="#2770CB", corner_radius=10)
+#         self.header_bar.pack(side="top", fill="x", padx=15, pady=(15, 5))
+#         self.header_label = ctk.CTkLabel(self.header_bar, text="캐릭터 검색 및 선택", 
+#                                          font=("Arial", 16, "bold"), text_color="white")
+#         self.header_label.place(relx=0.5, rely=0.5, anchor="center")
 
-        # 검색창 레이아웃
-        search_frame = ctk.CTkFrame(self, fg_color="transparent")
-        search_frame.pack(pady=10, padx=20, fill="x")
-        self.search_entry = ctk.CTkEntry(search_frame, placeholder_text="번호, 이름, 초성 검색...", 
-                                         fg_color="white", text_color="black")
-        self.search_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
-        self.search_entry.bind("<Return>", self.on_search) 
-        ctk.CTkButton(search_frame, text="검색", width=60, fg_color="#2770CB", command=self.on_search).pack(side="left")
+#         # 검색창 레이아웃
+#         search_frame = ctk.CTkFrame(self, fg_color="transparent")
+#         search_frame.pack(pady=10, padx=20, fill="x")
+#         self.search_entry = ctk.CTkEntry(search_frame, placeholder_text="번호, 이름, 초성 검색...", 
+#                                          fg_color="white", text_color="black")
+#         self.search_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
+#         self.search_entry.bind("<Return>", self.on_search) 
+#         ctk.CTkButton(search_frame, text="검색", width=60, fg_color="#2770CB", command=self.on_search).pack(side="left")
 
-        # [수정] 스크롤 영역 설정 및 마우스 휠 바인딩
-        self.scroll_frame = ctk.CTkScrollableFrame(self, width=440, height=500, 
-                                                   fg_color="transparent", 
-                                                   scrollbar_button_color="#A0A0A0")
-        self.scroll_frame.pack(pady=5, padx=10, fill="both", expand=True)
+#         # [수정] 스크롤 영역 설정 및 마우스 휠 바인딩
+#         self.scroll_frame = ctk.CTkScrollableFrame(self, width=440, height=500, 
+#                                                    fg_color="transparent", 
+#                                                    scrollbar_button_color="#A0A0A0")
+#         self.scroll_frame.pack(pady=5, padx=10, fill="both", expand=True)
 
-        # [수정] 팝업창 어디서든 휠이 작동하도록 바인딩
-        self.bind("<MouseWheel>", self._on_mousewheel)
-        self.after(200, lambda: self.search_entry.focus_set())
+#         # [수정] 팝업창 어디서든 휠이 작동하도록 바인딩
+#         self.bind("<MouseWheel>", self._on_mousewheel)
+#         self.after(200, lambda: self.search_entry.focus_set())
         
-        self.load_thumbnails()
+#         self.load_thumbnails()
 
-        self.remove_btn = ctk.CTkButton(self, text="이미지 제거 (텍스트 모드)", fg_color="#A12F2F", 
-                                        command=self.remove_binding)
-        self.remove_btn.pack(pady=15)
+#         self.remove_btn = ctk.CTkButton(self, text="이미지 제거 (텍스트 모드)", fg_color="#A12F2F", 
+#                                         command=self.remove_binding)
+#         self.remove_btn.pack(pady=15)
 
-    def _on_mousewheel(self, event):
-        """마우스 휠 스크롤 로직 (단위 조정)"""
-        # Canvas의 yview_scroll을 사용하여 부드럽게 스크롤
-        speed_multiplier = 100
-        scroll_units = int(-1 * (event.delta / 120) * speed_multiplier)
-        self.scroll_frame._parent_canvas.yview_scroll(scroll_units, "units")
+#     def _on_mousewheel(self, event):
+#         """마우스 휠 스크롤 로직 (단위 조정)"""
+#         # Canvas의 yview_scroll을 사용하여 부드럽게 스크롤
+#         speed_multiplier = 100
+#         scroll_units = int(-1 * (event.delta / 120) * speed_multiplier)
+#         self.scroll_frame._parent_canvas.yview_scroll(scroll_units, "units")
     
-    def decompose_jamo(self, text):
-        """[기능 추가] ㄳ, ㄻ 등의 겹자음을 개별 자음으로 분리하여 검색어와 매칭"""
-        mapping = {
-            'ㄳ': 'ㄱㅅ', 'ㄵ': 'ㄴㅈ', 'ㄶ': 'ㄴㅎ', 'ㄺ': 'ㄹㄱ', 'ㄻ': 'ㄹㅁ', 
-            'ㄼ': 'ㄹㅂ', 'ㄽ': 'ㄹㅅ', 'ㄾ': 'ㄹㅌ', 'ㄿ': 'ㄹㅍ', 'ㅀ': 'ㄹㅎ', 'ㅄ': 'ㅂㅅ'
-        }
-        return "".join(mapping.get(c, c) for c in text)
+#     def decompose_jamo(self, text):
+#         """[기능 추가] ㄳ, ㄻ 등의 겹자음을 개별 자음으로 분리하여 검색어와 매칭"""
+#         mapping = {
+#             'ㄳ': 'ㄱㅅ', 'ㄵ': 'ㄴㅈ', 'ㄶ': 'ㄴㅎ', 'ㄺ': 'ㄹㄱ', 'ㄻ': 'ㄹㅁ', 
+#             'ㄼ': 'ㄹㅂ', 'ㄽ': 'ㄹㅅ', 'ㄾ': 'ㄹㅌ', 'ㄿ': 'ㄹㅍ', 'ㅀ': 'ㄹㅎ', 'ㅄ': 'ㅂㅅ'
+#         }
+#         return "".join(mapping.get(c, c) for c in text)
 
-    def load_thumbnails(self):
-        """[수정] 전역 캐시를 사용하여 갤러리 생성 (속도 대폭 향상)"""
-        bound_paths = [os.path.basename(p) for p in self.parent.parent.key_bindings.values() if p]
+#     def load_thumbnails(self):
+#         """[수정] 전역 캐시를 사용하여 갤러리 생성 (속도 대폭 향상)"""
+#         bound_paths = [os.path.basename(p) for p in self.parent.parent.key_bindings.values() if p]
 
-        # 파일 목록 대신 캐시된 리스트 사용
-        for char_id, info in self.parent.parent.char_data.items():
-            if info.get("type") != "char": continue # 용병 타입만 로드
+#         # 파일 목록 대신 캐시된 리스트 사용
+#         for char_id, info in self.parent.parent.char_data.items():
+#             if info.get("type") != "char": continue # 용병 타입만 로드
 
-            filename = f"char_icon_{char_id.zfill(3)}.png"
-            file_path = os.path.join(self.resource_path, filename)
-            abs_path = os.path.abspath(file_path)
+#             filename = f"char_icon_{char_id.zfill(3)}.png"
+#             file_path = os.path.join(self.resource_path, filename)
+#             abs_path = os.path.abspath(file_path)
 
-            filename = f"char_icon_{char_id.zfill(3)}.png"
-            if filename in self.parent.parent.image_cache:
-                pil_img = self.parent.parent.image_cache[filename]
+#             filename = f"char_icon_{char_id.zfill(3)}.png"
+#             if filename in self.parent.parent.image_cache:
+#                 pil_img = self.parent.parent.image_cache[filename]
                 
-                # 흑백 처리가 필요한 경우에만 메모리 상에서 변환
-                if filename in bound_paths:
-                    display_pil = pil_img.convert("L")
-                else:
-                    display_pil = pil_img
+#                 # 흑백 처리가 필요한 경우에만 메모리 상에서 변환
+#                 if filename in bound_paths:
+#                     display_pil = pil_img.convert("L")
+#                 else:
+#                     display_pil = pil_img
                 
-                ctk_img = ctk.CTkImage(light_image=display_pil, dark_image=display_pil, size=(80, 80))
+#                 ctk_img = ctk.CTkImage(light_image=display_pil, dark_image=display_pil, size=(80, 80))
 
-                btn = ctk.CTkButton(self.scroll_frame, text="", image=ctk_img, width=110, height=110,
-                                    fg_color="#2b2b2b", hover_color="#3d3d3d",
-                                    border_color="#A0A0A0", border_width=1, corner_radius=8,
-                                    command=lambda p=file_path: self.confirm_selection(p))
-                self.thumbnail_buttons[char_id] = btn
-        self.update_gallery("")
+#                 btn = ctk.CTkButton(self.scroll_frame, text="", image=ctk_img, width=110, height=110,
+#                                     fg_color="#2b2b2b", hover_color="#3d3d3d",
+#                                     border_color="#A0A0A0", border_width=1, corner_radius=8,
+#                                     command=lambda p=file_path: self.confirm_selection(p))
+#                 self.thumbnail_buttons[char_id] = btn
+#         self.update_gallery("")
 
-    def convert_to_jamo(self, text):
-        """[신규] 영문 입력을 한글 자판 위치에 맞는 자음/모음으로 변환 후 분리합니다."""
-        mapping = {
-            'q': 'ㅂ', 'w': 'ㅈ', 'e': 'ㄷ', 'r': 'ㄱ', 't': 'ㅅ', 'y': 'ㅛ', 'u': 'ㅕ', 'i': 'ㅑ', 'o': 'ㅐ', 'p': 'ㅔ',
-            'a': 'ㅁ', 's': 'ㄴ', 'd': 'ㅇ', 'f': 'ㄹ', 'g': 'ㅎ', 'h': 'ㅗ', 'j': 'ㅓ', 'k': 'ㅏ', 'l': 'ㅣ',
-            'z': 'ㅋ', 'x': 'ㅌ', 'c': 'ㅊ', 'v': 'ㅍ', 'b': 'ㅠ', 'n': 'ㅜ', 'm': 'ㅡ',
-            'Q': 'ㅃ', 'W': 'ㅉ', 'E': 'ㄸ', 'R': 'ㄲ', 'T': 'ㅆ', 'O': 'ㅒ', 'P': 'ㅖ'
-        }
-        converted = "".join(mapping.get(char, char) for char in text)
-        return self.decompose_jamo(converted) # 기존 초성 분리 함수 호출
+#     def convert_to_jamo(self, text):
+#         """[신규] 영문 입력을 한글 자판 위치에 맞는 자음/모음으로 변환 후 분리합니다."""
+#         mapping = {
+#             'q': 'ㅂ', 'w': 'ㅈ', 'e': 'ㄷ', 'r': 'ㄱ', 't': 'ㅅ', 'y': 'ㅛ', 'u': 'ㅕ', 'i': 'ㅑ', 'o': 'ㅐ', 'p': 'ㅔ',
+#             'a': 'ㅁ', 's': 'ㄴ', 'd': 'ㅇ', 'f': 'ㄹ', 'g': 'ㅎ', 'h': 'ㅗ', 'j': 'ㅓ', 'k': 'ㅏ', 'l': 'ㅣ',
+#             'z': 'ㅋ', 'x': 'ㅌ', 'c': 'ㅊ', 'v': 'ㅍ', 'b': 'ㅠ', 'n': 'ㅜ', 'm': 'ㅡ',
+#             'Q': 'ㅃ', 'W': 'ㅉ', 'E': 'ㄸ', 'R': 'ㄲ', 'T': 'ㅆ', 'O': 'ㅒ', 'P': 'ㅖ'
+#         }
+#         converted = "".join(mapping.get(char, char) for char in text)
+#         return self.decompose_jamo(converted) # 기존 초성 분리 함수 호출
 
-    def on_search(self, event=None):
-        """[수정] 영타를 한글로 변환하여 검색을 수행합니다."""
-        raw_query = self.search_entry.get().strip()
-        # 영타 위치를 한글로 자동 해석
-        query = self.convert_to_jamo(raw_query).lower()
-        self.update_gallery(query)
+#     def on_search(self, event=None):
+#         """[수정] 영타를 한글로 변환하여 검색을 수행합니다."""
+#         raw_query = self.search_entry.get().strip()
+#         # 영타 위치를 한글로 자동 해석
+#         query = self.convert_to_jamo(raw_query).lower()
+#         self.update_gallery(query)
 
-    def update_gallery(self, query):
-        """[수정] data.json의 keyword 리스트를 기반으로 검색 수행"""
-        for btn in self.thumbnail_buttons.values(): btn.grid_forget()
-        filtered_ids = []
+#     def update_gallery(self, query):
+#         """[수정] data.json의 keyword 리스트를 기반으로 검색 수행"""
+#         for btn in self.thumbnail_buttons.values(): btn.grid_forget()
+#         filtered_ids = []
         
-        for cid, info in self.char_data.items():
-            if cid not in self.thumbnail_buttons: continue
+#         for cid, info in self.char_data.items():
+#             if cid not in self.thumbnail_buttons: continue
             
-            name = info.get("name", "").lower()
-            # [수정] keyword 리스트의 모든 항목을 초성 분리하여 검색어와 비교
-            keywords = [self.decompose_jamo(k.lower()) for k in info.get("keyword", [])]
+#             name = info.get("name", "").lower()
+#             # [수정] keyword 리스트의 모든 항목을 초성 분리하여 검색어와 비교
+#             keywords = [self.decompose_jamo(k.lower()) for k in info.get("keyword", [])]
 
-            if not query or (query == cid or query in name or any(query in k for k in keywords)):
-                filtered_ids.append(cid)
+#             if not query or (query == cid or query in name or any(query in k for k in keywords)):
+#                 filtered_ids.append(cid)
 
-        for i, cid in enumerate(filtered_ids):
-            self.thumbnail_buttons[cid].grid(row=i // 3, column=i % 3, padx=8, pady=8)
-        self.scroll_frame._parent_canvas.yview_moveto(0)
+#         for i, cid in enumerate(filtered_ids):
+#             self.thumbnail_buttons[cid].grid(row=i // 3, column=i % 3, padx=8, pady=8)
+#         self.scroll_frame._parent_canvas.yview_moveto(0)
 
-    def load_char_data(self):
-        """JSON 로드 (encoding 규칙 준수)"""
-        if os.path.exists(self.json_path):
-            try:
-                with open(self.json_path, "r", encoding="euc-kr") as f:
-                    return json.load(f)
-            except: pass
-        return {}
+#     def load_char_data(self):
+#         """JSON 로드 (encoding 규칙 준수)"""
+#         if os.path.exists(self.json_path):
+#             try:
+#                 with open(self.json_path, "r", encoding="euc-kr") as f:
+#                     return json.load(f)
+#             except: pass
+#         return {}
 
-    def confirm_selection(self, path):
-        """[수정] 경로 오차 해결 및 동일 이미지 재할당 방지 로직 적용"""
-        selected_filename = os.path.basename(path)
-        current_bindings = self.parent.parent.key_bindings
+#     def confirm_selection(self, path):
+#         """[수정] 경로 오차 해결 및 동일 이미지 재할당 방지 로직 적용"""
+#         selected_filename = os.path.basename(path)
+#         current_bindings = self.parent.parent.key_bindings
         
-        # 1. 현재 키에 똑같은 이미지를 다시 할당하려는지 검사
-        assigned_path = current_bindings.get(self.target_slot_key, "")
-        if assigned_path and os.path.basename(assigned_path) == selected_filename:
-            messagebox.showinfo("알림", "이미 할당된 이미지입니다.")
-            return
+#         # 1. 현재 키에 똑같은 이미지를 다시 할당하려는지 검사
+#         assigned_path = current_bindings.get(self.target_slot_key, "")
+#         if assigned_path and os.path.basename(assigned_path) == selected_filename:
+#             messagebox.showinfo("알림", "이미 할당된 이미지입니다.")
+#             return
 
-        # 2. 다른 키에 이미 설정된 이미지인지 검사 (파일명 기준)
-        existing_key = None
-        for k, v in current_bindings.items():
-            if v and os.path.basename(v) == selected_filename and k != self.target_slot_key:
-                existing_key = k
-                break
+#         # 2. 다른 키에 이미 설정된 이미지인지 검사 (파일명 기준)
+#         existing_key = None
+#         for k, v in current_bindings.items():
+#             if v and os.path.basename(v) == selected_filename and k != self.target_slot_key:
+#                 existing_key = k
+#                 break
 
-        if existing_key:
-            if messagebox.askyesno("중복 확인", f"이미 '{existing_key.upper()}'에 설정된 이미지입니다.\n새로 바꾸시겠습니까?"):
-                # 기존 키 해제 및 UI 갱신
-                self.parent.parent.bind_image_to_key(existing_key, None)
-                self.parent.refresh_specific_slot(existing_key) 
-                # 새 슬롯 할당
-                self.callback(self.target_slot_key, path)
-                self.destroy()
-        else:
-            self.callback(self.target_slot_key, path)
-            self.destroy()
+#         if existing_key:
+#             if messagebox.askyesno("중복 확인", f"이미 '{existing_key.upper()}'에 설정된 이미지입니다.\n새로 바꾸시겠습니까?"):
+#                 # 기존 키 해제 및 UI 갱신
+#                 self.parent.parent.bind_image_to_key(existing_key, None)
+#                 self.parent.refresh_specific_slot(existing_key) 
+#                 # 새 슬롯 할당
+#                 self.callback(self.target_slot_key, path)
+#                 self.destroy()
+#         else:
+#             self.callback(self.target_slot_key, path)
+#             self.destroy()
 
-    def remove_binding(self):
-        self.unbind_all("<MouseWheel>")
-        self.callback(self.target_slot_key, None) 
-        self.destroy()
+#     def remove_binding(self):
+#         self.unbind_all("<MouseWheel>")
+#         self.callback(self.target_slot_key, None) 
+#         self.destroy()
 
-    def destroy(self):
-        self.unbind_all("<MouseWheel>")
-        super().destroy()
+#     def destroy(self):
+#         self.unbind_all("<MouseWheel>")
+#         super().destroy()
 
 # class InGameKeyConfigPopup(ctk.CTkToplevel):
 #     """상단 고정 조작키 구역과 하단 용병 슬롯의 디자인을 개별 최적화한 설정 팝업"""
@@ -1077,11 +1077,13 @@ class FullKeyboardOverlay(ctk.CTk):
     """[수정] 리소스 전역 캐싱 최적화가 적용된 메인 오버레이 클래스"""
     def __init__(self, config_path="./config.json"):
         super().__init__()
+        self.cleanup_old_meipass()
         self.config_file = config_path 
         self.image_cache = {}  # 파일명: 리사이즈된 PIL.Image 객체
         self.char_data = {}    # data.json 파싱 데이터
         self.input_queue = queue.Queue()
         self.pressed_keys_state = set() # 현재 눌려있는 키를 기록 (중복 입력 방지용)
+        self.load_char_data()
         
         # 1. 프로그램 실행 시 리소스 미리 불러오기
         # self.preload_resources()
@@ -1306,8 +1308,10 @@ class FullKeyboardOverlay(ctk.CTk):
         # 3. [핵심] 키보드 리스너 쓰레드를 명시적으로 정지
         if hasattr(self, 'listener') and self.listener:
             self.listener.stop()
-            
-        # 4. 모든 팝업 및 창 리소스 해제 후 종료
+
+        self.image_cache.clear()
+        import gc
+        gc.collect() # 메모리에 남은 이미지 핸들 강제 반환 시도
         self.quit()    # 이벤트 루프 중지
         self.destroy() # 창 파괴
 
@@ -1962,6 +1966,17 @@ class FullKeyboardOverlay(ctk.CTk):
         final_h = req_h + pad_y
         self.geometry(f"{final_w}x{final_h}")
         # print(f"Auto-fit applied: {final_w}x{final_h}")
+
+    def load_char_data(self):
+        """[신규] 검색 기능을 위해 data.json 메타데이터만 로드합니다."""
+        json_path = resource_path("./resource/data.json")
+        if os.path.exists(json_path):
+            try:
+                # euc-kr 인코딩 주의 (필요시 utf-8로 변경)
+                with open(json_path, "r", encoding="euc-kr") as f:
+                    self.char_data = json.load(f)
+            except Exception as e:
+                print(f"데이터 로드 실패: {e}")
     
     def apply_preset_theme(self, theme_name):
         """[수정] 테마 변경 시 현재의 투명화 상태를 유지하도록 로직 보완"""
@@ -2004,6 +2019,43 @@ class FullKeyboardOverlay(ctk.CTk):
             "use_transparent_bg": self.use_transparent_bg,
             "always_on_top": self.always_on_top
         }
+    
+    def cleanup_old_meipass(self):
+        import shutil
+        import tempfile
+        
+        # 1. 시스템 임시 폴더 경로 가져오기 (C:\Users\User\AppData\Local\Temp)
+        temp_dir = tempfile.gettempdir()
+        
+        # 2. 현재 실행 중인 임시 폴더 경로 (이건 절대 지우면 안 됨!)
+        try:
+            current_mei = sys._MEIPASS
+        except AttributeError:
+            return # PyInstaller로 빌드된 상태가 아니면 패스
+
+        # 3. 임시 폴더 내의 _MEI 로 시작하는 폴더 탐색
+        try:
+            for folder_name in os.listdir(temp_dir):
+                if folder_name.startswith("_MEI"):
+                    folder_path = os.path.join(temp_dir, folder_name)
+                    
+                    # 현재 실행 중인 폴더는 건너뜀
+                    if folder_path == current_mei:
+                        continue
+                    
+                    # 4. 삭제 시도
+                    try:
+                        # 권한 문제나 다른 프로그램이 사용 중이면 에러가 발생하므로 try-except 필수
+                        shutil.rmtree(folder_path)
+                        print(f"오래된 임시 폴더 삭제 완료: {folder_name}")
+                    except PermissionError:
+                        # 다른 PyInstaller 프로그램이 실행 중이라 잠겨있는 경우 -> 무시
+                        pass
+                    except Exception as e:
+                        print(f"삭제 실패 ({folder_name}): {e}")
+                        
+        except Exception as e:
+            print(f"청소 중 오류 발생: {e}")
 
     def capture_current_state(self):
         """[수정] 캡쳐 시 배경 투명화를 강제로 해제하여 선명한 이미지를 저장하고 복구합니다."""
