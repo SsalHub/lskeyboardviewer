@@ -1545,7 +1545,7 @@ class FullKeyboardOverlay(ctk.CTk):
             self.context_menu.add_separator()
             self.context_menu.add_command(label="  현재 상태 캡쳐하기", command=self.capture_current_state)
             self.context_menu.add_separator()
-            if has_changes: self.context_menu.add_command(label="  변경사항 초기화하기", command=self.revert_changes)
+            if has_changes: self.context_menu.add_command(label=f"{save_prefix}변경사항 초기화하기", command=self.revert_changes)
             self.context_menu.add_command(label=f"{save_prefix}{fname}에 설정 저장", command=self.save_config)
             self.context_menu.add_command(label=f"{save_prefix}다른 이름으로 설정 저장", command=self.save_config_as)
             self.context_menu.add_command(label="  기존 설정 파일 불러오기", command=self.load_config_from_file)
