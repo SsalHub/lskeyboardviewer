@@ -53,7 +53,8 @@ def build():
     PyInstaller.__main__.run([
         'app.py',                       
         '--noconsole',                 
-        '--onefile',                    
+        # '--onefile',                    
+        '--onedir',                    
         # '--runtime-tmpdir=.',           
         '--version-file=version_info.txt', 
         '--add-data=resource;resource', 

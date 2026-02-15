@@ -1077,7 +1077,7 @@ class FullKeyboardOverlay(ctk.CTk):
     """[수정] 리소스 전역 캐싱 최적화가 적용된 메인 오버레이 클래스"""
     def __init__(self, config_path="./config.json"):
         super().__init__()
-        self.cleanup_old_meipass()
+        # self.cleanup_old_meipass()
         self.config_file = config_path 
         self.image_cache = {}  # 파일명: 리사이즈된 PIL.Image 객체
         self.char_data = {}    # data.json 파싱 데이터
