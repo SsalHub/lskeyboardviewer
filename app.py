@@ -1947,7 +1947,7 @@ class FullKeyboardOverlay(ctk.CTk):
             if self.current_mode == "full":
                 t_frame = ctk.CTkFrame(self.center_container, fg_color="transparent") # self. 추가
                 t_frame.grid(row=1, column=2, sticky="nw")
-                for r, row in enumerate([[("NL","num_lock"),("/","numpad_div"),("*","numpad_mul"),("-","numpad_sub")],[("7","numpad_7"),("8","numpad_8"),("9","numpad_9")],[("4","numpad_4"),("5","numpad_5"),("6","numpad_6")],[("1","numpad_1"),("2","numpad_2"),("3","numpad_3")]]):
+                for r, row in enumerate([[("NL","num_lock"),("/","numpad_div"),("*","numpad_mul"),("-","numpad_sub")],[("↖","numpad_7"),("↑","numpad_8"),("↗","numpad_9")],[("←","numpad_4"),("↓","numpad_5"),("→","numpad_6")],[("↙","numpad_1"),("2","numpad_2"),("↘","numpad_3")]]):
                     for c, (txt, kid) in enumerate(row): self.create_key(t_frame, txt, r, c, key_code=kid)
                 self.create_key(t_frame, "0", 4, 0, width=s*2, columnspan=2, key_code="numpad_0"); self.create_key(t_frame, ".", 4, 2, key_code="numpad_dot"); self.create_key(t_frame, "+", 1, 3, height=s*2, rowspan=2, key_code="numpad_add"); self.create_key(t_frame, "Ent", 3, 3, height=s*2, rowspan=2, key_code="numpad_enter")
 
