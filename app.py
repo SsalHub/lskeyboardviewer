@@ -1177,20 +1177,26 @@ class FullKeyboardOverlay(ctk.CTk):
         # [신규] 배경 투명화 설정 로드 및 적용 (기본값: False)
         self.use_transparent_bg = config_data.get("use_transparent_bg", False)
         # 초기 배경 설정 적용
-        self.use_transparent_bg = False
-        if self.use_transparent_bg:
-            self.configure(fg_color=self.transparent_color)
-            self.attributes("-transparentcolor", self.transparent_color)
-        else:
-            self.configure(fg_color="#1a1a1a")
+        # self.use_transparent_bg = False
+        # if self.use_transparent_bg:
+        #     self.configure(fg_color=self.transparent_color)
+        #     self.attributes("-transparentcolor", self.transparent_color)
+        # else:
+        #     self.configure(fg_color="#1a1a1a")
         self.bg_color = config_data.get("bg_color", "#1a1a1a")
         self.key_bg_color = config_data.get("key_bg_color", "#333333")
         self.key_border_color = config_data.get("key_border_color", "#555555")
         self.key_text_color = config_data.get("key_text_color", "white")
         self.key_pressed_color = config_data.get("key_pressed_color", "#aaaaaa")
         self.minimal_key_map = config_data.get("minimal_key_map", {})
+        self.use_transparent_bg = config_data.get("use_transparent_bg", False)
+        self.always_on_top = config_data.get("always_on_top", True)
         
         self.configure(fg_color=self.bg_color) # 로드된 배경색 적용
+        if self.use_transparent_bg:
+                self.attributes("-transparentcolor", self.bg_color)
+        else:
+                self.attributes("-transparentcolor", "")
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=0)
         self.main_frame.pack(expand=True, fill="both")
         self.buttons = {}
